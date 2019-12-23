@@ -88,11 +88,9 @@ emulator是一个可以直接在Linux下运行的设备模拟器，如果编译�
 
 -   pipenv run make -C firmware
 
-在firmware/目录下生成trezor.elf可执行文件。
+在firmware/目录下生成trezor.elf可执行文件，运行模拟器：
 
 - firmware/trezor.elf
-
-  ![image-20191220193835902](C:\Users\lihua\AppData\Roaming\Typora\typora-user-images\image-20191220193835902.png)
 
 ### trezor core emulator编译过程
 
@@ -112,8 +110,6 @@ trezor core使用了scons来管理工程，需要安装scons
 
 -   pipenv run make build\_unix
 
-执行仿真器：
+运行模拟器：
 
 - ./emu.sh
-
-  ![image-20191220193910440](C:\Users\lihua\AppData\Roaming\Typora\typora-user-images\image-20191220193910440.png)
