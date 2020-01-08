@@ -27,7 +27,8 @@ uint16_t buttonRead(void) { return gpio_port_read(BTN_PORT); }
 #endif
 
 void buttonUpdate() {
-  static uint16_t last_state = BTN_PIN_YES | BTN_PIN_NO;
+  static uint16_t last_state =
+      (BTN_PIN_YES | BTN_PIN_UP | BTN_PIN_DOWN) & (~BTN_PIN_NO);
 
   uint16_t state = buttonRead();
 
@@ -120,19 +121,17 @@ void buttonUpdate() {
       button.DownUp = false;
     }
   }
-  if (button.YesUp ||button.NoUp || button.UpUp ||button.DownUp) {
+  if (button.YesUp || button.NoUp || button.UpUp || button.DownUp) {
     system_millis_poweroff_start = 0;
   }
 
   last_state = state;
 }
 
-bool hasbutton(void) 
-{
+bool hasbutton(void) {
   buttonUpdate();
-  if (button.YesUp ||button.NoUp || button.UpUp ||button.DownUp) {
+  if (button.YesUp || button.NoUp || button.UpUp || button.DownUp) {
     return true;
-         
   }
   return false;
 }
