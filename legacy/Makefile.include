@@ -118,7 +118,8 @@ LDFLAGS  += --static \
             -L$(TOOLCHAIN_DIR)/lib \
             -T$(LDSCRIPT) \
             -nostartfiles \
-            -Wl,--gc-sections
+            -Wl,--gc-sections \
+            -Wl,-Map=$(NAME).map
 
 LDLIBS   += -ltrezor
 LIBDEPS  += $(TOP_DIR)/libtrezor.a
