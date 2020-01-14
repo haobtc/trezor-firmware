@@ -439,8 +439,10 @@ static void vBle_NFC_RX_Data(uint8_t *pucInputBuf) {
 
       } else {
         g_usI2cRevLen = usLen;
+#if U2F_ENABLED
         u2fhid_read_start(
             (const U2FHID_FRAME *)(void *)(pucInputBuf + DATA_HEAD_LEN));
+#endif
       }
 
       break;
