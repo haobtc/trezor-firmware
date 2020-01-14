@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "buttons.h"
+#include "common.h"
 #include "si2c.h"
 #include "sys.h"
 #include "timer.h"
