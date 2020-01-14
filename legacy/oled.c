@@ -17,18 +17,15 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libopencm3/stm32/gpio.h>
-#include <libopencm3/stm32/spi.h>
-
 #include <string.h>
 
+#include "buttons.h"
+#include "common.h"
 #include "memzero.h"
 #include "oled.h"
-#include "util.h"
 #include "prompt.h"
-#include "buttons.h"
-
-
+#include "timer.h"
+#include "util.h"
 
 #define OLED_SETCONTRAST 0x81
 #define OLED_DISPLAYALLON_RESUME 0xA4
@@ -52,14 +49,6 @@
 #define OLED_SEGREMAP 0xA0
 #define OLED_CHARGEPUMP 0x8D
 
-#define SPI_BASE SPI1
-#define OLED_DC_PORT GPIOB
-#define OLED_DC_PIN GPIO0  // PB0 | Data/Command
-#define OLED_CS_PORT GPIOA
-#define OLED_CS_PIN GPIO4  // PA4 | SPI Select
-#define OLED_RST_PORT GPIOB
-#define OLED_RST_PIN GPIO1  // PB1 | Reset display
-
 /* Trezor has a display of size OLED_WIDTH x OLED_HEIGHT (128x64).
  * The contents of this display are buffered in _oledbuffer.  This is
  * an array of OLED_WIDTH * OLED_HEIGHT/8 bytes.  At byte y*OLED_WIDTH + x
@@ -72,7 +61,6 @@ static uint8_t _oledbuffer[OLED_BUFSIZE];
 static bool is_debug_link = 0;
 Ble_Info g_ble_info;
 USB_Info g_usb_info;
-
 
 /*
  * macros to convert coordinate to bit position
@@ -513,7 +501,7 @@ void oledSCAInside(int y1, int y2, int width, int a, int b) {
  */
 void vDisp_PromptInfo(uint8_t ucIndex) {
   // oledClear();
-   g_ucLanguageFlag = 1;
+  g_ucLanguageFlag = 1;
   switch (ucIndex) {
     case DISP_NOT_ACTIVE:
       if (g_ucLanguageFlag) {
@@ -572,7 +560,8 @@ void vDisp_PromptInfo(uint8_t ucIndex) {
       if (g_ucLanguageFlag) {
         oledDrawBitmap(0, 48, &bmp_cn_prikey_gen);
       } else {
-        oledDrawStringCenter(60, 48, "Generating private key...", FONT_STANDARD);
+        oledDrawStringCenter(60, 48, "Generating private key...",
+                             FONT_STANDARD);
       }
       break;
     case DISP_ACTIVE_SUCCESS:
@@ -666,16 +655,16 @@ void vDisp_PromptInfo(uint8_t ucIndex) {
         oledDrawStringCenter(60, 30, "Power Off", FONT_STANDARD);
       }
       oledRefresh();
-      delay_time(2000);
+      delay(2000);
       oledClear();
       oledRefresh();
       return;
     case DISP_BLE_NAME:
-      oledDrawStringCenter(60, 56, (const char *)g_ble_info.ucBle_Name, FONT_STANDARD);
+      oledDrawStringCenter(60, 56, (const char *)g_ble_info.ucBle_Name,
+                           FONT_STANDARD);
       break;
     default:
       break;
   }
   //   oledRefresh();
 }
-

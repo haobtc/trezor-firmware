@@ -16,19 +16,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include "common.h"
 #include <stdio.h>
+
 #include "bitmaps.h"
+#include "common.h"
 #include "firmware/usb.h"
 #include "hmac_drbg.h"
 #include "layout.h"
 #include "oled.h"
 #include "rng.h"
-#include "sys.h"
 #include "util.h"
 
 uint8_t HW_ENTROPY_DATA[HW_ENTROPY_LEN];
+
+uint8_t g_ucLanguageFlag = 0;
+uint8_t g_ucWorkMode = 0;
+/*poweroff */
+volatile uint32_t system_millis_poweroff_start;
 
 static HMAC_DRBG_CTX drbg_ctx;
 
@@ -67,7 +71,6 @@ __fatal_error(const char *expr, const char *msg, const char *file, int line_num,
   oledRefresh();
 
   shutdown();
-  POWER_OFF();
 }
 
 void __attribute__((noreturn))
@@ -76,7 +79,6 @@ error_shutdown(const char *line1, const char *line2, const char *line3,
   layoutDialog(&bmp_icon_error, NULL, NULL, NULL, line1, line2, line3, line4,
                "Please unplug", "the device.");
   shutdown();
-  POWER_OFF();
 }
 
 #ifndef NDEBUG

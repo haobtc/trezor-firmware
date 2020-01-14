@@ -23,8 +23,6 @@
 #include <libopencm3/stm32/gpio.h>
 #include <stdbool.h>
 
-#define OLD_PCB 0
-
 struct buttonState {
   volatile bool YesUp;
   volatile int YesDown;
@@ -37,16 +35,17 @@ struct buttonState {
 };
 
 extern struct buttonState button;
+extern int button_poweroff_flag;
 
 uint16_t buttonRead(void);
 void buttonUpdate(void);
-bool hasbutton(void) ;
-
+bool hasbutton(void);
+void buttonsIrqInit(void);
 
 #ifndef BTN_PORT
 #define BTN_PORT GPIOC
 #endif
-#if (OLD_PCB)
+#ifdef OLD_PCB
 #ifndef BTN_PIN_YES
 #define BTN_PIN_YES GPIO0
 #endif
@@ -81,12 +80,5 @@ bool hasbutton(void) ;
 #define BTN_PIN_DOWN GPIO5
 #endif
 #endif
-
-#define GPIO_POWER_ON     GPIO4
-
-//power control
-#define POWER_ON()	        (gpio_set(GPIOC, GPIO_POWER_ON))
-#define POWER_OFF()	        (gpio_clear(GPIOC, GPIO_POWER_ON))
-
 
 #endif

@@ -25,9 +25,12 @@
 #include <libopencm3/stm32/rng.h>
 #include <libopencm3/stm32/spi.h>
 
+#include "buttons.h"
 #include "layout.h"
 #include "mi2c.h"
+#include "oled.h"
 #include "rng.h"
+#include "si2c.h"
 #include "sys.h"
 #include "usart.h"
 #include "util.h"
@@ -89,18 +92,21 @@ void setup(void) {
   RCC_CR |= RCC_CR_CSSON;
 
   // set GPIO for buttons
-  gpio_mode_setup(BTN_PORT, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP,
+  gpio_mode_setup(GPIOC, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP,
                   BTN_PIN_YES | BTN_PIN_UP | BTN_PIN_DOWN);
-  gpio_mode_setup(BTN_PORT, GPIO_MODE_INPUT, GPIO_PUPD_NONE, BTN_PIN_NO);
+  gpio_mode_setup(GPIOC, GPIO_MODE_INPUT, GPIO_PUPD_NONE, BTN_PIN_NO);
 
-  // usb insert io
-  gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_USB_INSERT);
-  gpio_mode_setup(GPIOC, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_NFC_INSERT);
-  // battery power on
-  gpio_mode_setup(GPIOC, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, GPIO_POWER_ON);
-  // ble power off
-  gpio_mode_setup(GPIOC, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO_BLE_POWER);
-  POWER_OFF_BLE();
+  // set GPIO for usb_insert
+  gpio_mode_setup(USB_INSERT_PORT, GPIO_MODE_INPUT, GPIO_PUPD_NONE,
+                  USB_INSERT_PIN);
+  // nfc showed
+  gpio_mode_setup(NFC_SHOW_PORT, GPIO_MODE_INPUT, GPIO_PUPD_NONE, NFC_SHOW_PIN);
+  // stm32 power control
+  gpio_mode_setup(STM32_POWER_CTRL_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLDOWN,
+                  STM32_POWER_CTRL_PIN);
+  // bluetooth power control
+  gpio_mode_setup(BLE_POWER_CTRL_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLDOWN,
+                  BLE_POWER_CTRL_PIN);
   // combus
   gpio_mode_setup(GPIO_CMBUS_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE,
                   GPIO_SI2C_CMBUS);
@@ -111,10 +117,10 @@ void setup(void) {
   POWER_OFF_SE();
 
   // set GPIO for OLED display
-  gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO4);
-  // gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO2 | GPIO4 |
-  // GPIO3);
-  gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0 | GPIO1);
+  gpio_mode_setup(OLED_DC_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, OLED_DC_PIN);
+  gpio_mode_setup(OLED_CS_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, OLED_CS_PIN);
+  gpio_mode_setup(OLED_RST_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE,
+                  OLED_RST_PIN);
 
   // enable SPI 1 for OLED display
   gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO5 | GPIO7);
@@ -170,7 +176,6 @@ void setupApp(void) {
   usart_setup();
 #endif
 
-  vCheckMode();
 #if (_SUPPORT_DEBUG_UART_)
   if (WORK_MODE_BLE == g_ucWorkMode) {
     vUART_DebugInfo("\n\r WORK_MODE_BLE !\n\r", &g_ucWorkMode, 1);
@@ -186,6 +191,8 @@ void setupApp(void) {
   // master i2c init
   vMI2CDRV_Init();
 #endif
+  // I2C slave
+  vSI2CDRV_Init();
 }
 
 #define MPU_RASR_SIZE_32B (0x04UL << MPU_RASR_SIZE_LSB)

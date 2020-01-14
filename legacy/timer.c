@@ -17,24 +17,16 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "timer.h"
-#include "buttons.h"
-//#include "oled.h"
-
-
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/cm3/vector.h>
 #include <libopencm3/stm32/rcc.h>
 
+#include "buttons.h"
+#include "sys.h"
+#include "timer.h"
 /* 1 tick = 1 ms */
 extern volatile uint32_t system_millis;
 uint8_t ucTimeFlag;
-uint8_t g_ucLanguageFlag = 0;
-
-
-/*poweroff */
-volatile uint32_t system_millis_poweroff_start;
-
 
 /*
  * delay time
@@ -51,7 +43,6 @@ void delay_us(uint32_t uiDelay_us) {
     __asm__("nop");
   }
 }
-
 
 /*
  * Initialise the Cortex-M3 SysTick timer
@@ -84,17 +75,15 @@ void timer_init(void) {
   systick_counter_enable();
 }
 
-void sys_tick_handler(void) 
-{
-  system_millis++; 
-  if(POWER_OFF_TIMER_READY()  ) 
-  {
-    system_millis_poweroff_start++;
-    if(system_millis_poweroff_start > autoPowerOffMsDefault ) 
-    {
-      //vDisp_PromptInfo(DISP_PRESSKEY_POWEROFF);
-      POWER_OFF();
-      while(1);
+void sys_tick_handler(void) {
+  static volatile int counter = 0;
+  system_millis++;
+  if (button_poweroff_flag == 1) {
+    counter++;
+    if (counter > 2000) {
+      sys_shutdown();
     }
+  } else {
+    counter = 0;
   }
 }

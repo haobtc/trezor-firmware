@@ -71,7 +71,7 @@ shutdown:
   ldr r1, =_ram_end
   // set to value in r2
   bl memset_reg
-  b . // loop forever
+  b sys_shutdown // loop forever
 
   .ltorg // dump literal pool (for the ldr ...,=... commands above)
 

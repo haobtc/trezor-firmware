@@ -1,33 +1,32 @@
 
-#include "sys.h"
-#include <string.h>
+
+#include <libopencm3/cm3/scb.h>
 #include <libopencm3/stm32/gpio.h>
+#include <string.h>
+
 #include "bitmaps.h"
+#include "oled.h"
 #include "si2c.h"
+#include "sys.h"
+#include "timer.h"
 
-
-
-uint8_t g_ucWorkMode = 0;
 uint8_t g_ucFlag = 0;
 uint8_t s_usPower_Button_Status = POWER_BUTTON_UP;
 
-extern void vDISP_DeviceInfo(void) ;
+extern void vDISP_DeviceInfo(void);
 
 /*
- * ble mac get ble name 
+ * ble mac get ble name
  */
- void vCalu_BleName(uint8_t * pucMac,uint8_t * pucName)
- {
-    uint8_t i;
-    
-    memcpy(pucName,BLE_ADV_NAME,BLE_ADV_NAME_LEN);
-    
-    for(i = 0;i < 4;i++)
-    {
-        pucName[BLE_ADV_NAME_LEN - 4+i] +=pucMac[i] %20;    
-    }
- }
+void vCalu_BleName(uint8_t *pucMac, uint8_t *pucName) {
+  uint8_t i;
 
+  memcpy(pucName, BLE_ADV_NAME, BLE_ADV_NAME_LEN);
+
+  for (i = 0; i < 4; i++) {
+    pucName[BLE_ADV_NAME_LEN - 4 + i] += pucMac[i] % 20;
+  }
+}
 
 /*
  * display ble message
@@ -80,83 +79,55 @@ bool bBle_DisPlay(uint8_t ucIndex, uint8_t *ucStr) {
   }
 }
 
-/*
- * battery power on/off
- */
-void vPower_Control(uint8_t ucMode) {
-  uint32_t uiCount = 0;
-
-  if (BUTTON_POWER_ON == ucMode) {
-    while (1) {
-      if (GET_BUTTON_CANCEL()) {
-        delay_time(10);
-        uiCount++;
-        if (uiCount > 150) {
-          POWER_ON();
-          g_ucWorkMode = WORK_MODE_BLE;
-          s_usPower_Button_Status = POWER_BUTTON_DOWN;
-          break;
-        }
-
-      } else {
-        delay_time(2);
-        if (0x00 == GET_BUTTON_CANCEL()) {
-          POWER_OFF();
-          while (1)
-            ;
-        }
-      }
-    }
-
-  } else {
-    if ((WORK_MODE_USB != g_ucWorkMode) && (GET_BUTTON_CANCEL())) {
-      // no usb and button down and no nfc
-      if ((0x00 == GET_USB_INSERT()) &&
-          (POWER_BUTTON_UP == s_usPower_Button_Status) && (GET_NFC_INSERT())) {
-        while (GET_BUTTON_CANCEL()) {
-          delay_time(10);
-          uiCount++;
-          if (uiCount > 150) {
-            vDisp_PromptInfo(DISP_PRESSKEY_POWEROFF);
-            POWER_OFF();
-            while (1)
-              ;
-          }
-        }
-      }
-    } else {
-      s_usPower_Button_Status = POWER_BUTTON_UP;
-      vDISP_DeviceInfo();
+bool sys_nfcState(void) {
+  if (get_nfc_state() == 0) {
+    delay_time(1);
+    if (get_nfc_state() == 0) {
+      return true;
     }
   }
+  return false;
+}
+bool sys_usbState(void) {
+  if (get_usb_state()) {
+    delay_time(1);
+    if (get_usb_state()) {
+      return true;
+    }
+  }
+  return false;
 }
 
-/*
- * check usb/nfc/ble
- */
-void vCheckMode(void) {
-  g_ucWorkMode = 0;
+void sys_shutdown(void) {
+  oledClear();
+  oledDrawStringCenter(64, 30, "power off ...", FONT_STANDARD);
+  oledRefresh();
+  delay_time(500);
+  oledClear();
+  oledRefresh();
+  ble_power_off();
+  stm32_power_off();
+  scb_reset_system();
+}
 
-  // nfc mode
-  if (0x00 == GET_NFC_INSERT()) {
-    delay_time(2);
-    if (0x00 == GET_NFC_INSERT()) {
-      g_ucWorkMode = WORK_MODE_NFC;
-      POWER_ON();
-      return;
-    }
-  } else {
-    // usb mode
-    if (GET_USB_INSERT()) {
-      delay_time(2);
-      if (GET_USB_INSERT()) {
-        g_ucWorkMode = WORK_MODE_USB;
-        POWER_ON_BLE();
-        return;
+void sys_poweron(void) {
+  uint32_t count = 0;
+
+  while (1) {
+    if (get_power_key_state()) {
+      delay_time(100);
+      count++;
+      if (count > 5) {
+        oledClear();
+        oledDrawStringCenter(64, 30, "power on...", FONT_STANDARD);
+        oledRefresh();
+        while (get_power_key_state())
+          ;
+        break;
       }
-    } else {
-      // 2s power on
-      vPower_Control(BUTTON_POWER_ON);
-    }
+    } else if (sys_nfcState() || sys_usbState())
+      break;
   }
+  stm32_power_on();
+  ble_power_on();
 }

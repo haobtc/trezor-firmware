@@ -31,6 +31,7 @@
 #include "rng.h"
 #include "setup.h"
 #include "signatures.h"
+#include "sys.h"
 #include "usb.h"
 #include "util.h"
 
@@ -119,10 +120,13 @@ int main(void) {
 #ifndef APPVER
   // memory_protect();
   oledInit();
+  sys_poweron();
+  buttonsIrqInit();
+  timer_init();
 #endif
   // mpu_config_bootloader();
 #ifndef APPVER
-  bool left_pressed = (buttonRead() & BTN_PIN_DOWN) == BTN_PIN_DOWN;
+  bool left_pressed = (buttonRead() & BTN_PIN_DOWN) == 0;
 
   if (firmware_present_new() && !left_pressed) {
     oledClear();
@@ -136,6 +140,8 @@ int main(void) {
     int signed_firmware = signatures_new_ok(hdr, fingerprint);
     if (SIG_OK != signed_firmware) {
       show_unofficial_warning(fingerprint);
+      signed_firmware =
+          SIG_OK;  // if not set this,unofficial firmware jump will be fault
     }
 
     if (SIG_OK != check_firmware_hashes(hdr)) {

@@ -4,6 +4,7 @@
 #include <libopencm3/stm32/rcc.h>
 #include <string.h>
 #include "sys.h"
+#include "timer.h"
 #include "usart.h"
 
 uint8_t g_ucMI2cRevBuf[MI2C_BUF_MAX_LEN];
