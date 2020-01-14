@@ -30,21 +30,21 @@
 #include "oled.h"
 #include "rng.h"
 #include "setup.h"
-#include "sys.h"
 #include "timer.h"
 #include "usb.h"
 #include "util.h"
 #if !EMULATOR
 #include <libopencm3/stm32/desig.h>
 #include "otp.h"
+#include "sys.h"
 #endif
 
 #define autoPowerOffDelayMsDefault (5 * 60 * 1000U)  // 5 minutes
 
 /* Screen timeout */
-//uint32_t system_millis_lock_start = 0;
+// uint32_t system_millis_lock_start = 0;
 
-//void check_lock_screen(void) {
+// void check_lock_screen(void) {
 //  buttonUpdate();
 
 //  // wake from screensaver on any button
@@ -85,7 +85,6 @@
 //    }
 //  }
 //}
-
 
 static void collect_hw_entropy(bool privileged) {
 #if EMULATOR
@@ -145,17 +144,18 @@ int main(void) {
 #endif
 #endif
 
-  vlayoutLogo();
-  oledRefresh();
+#if EMULATOR
+  g_ucWorkMode = WORK_MODE_USB;
+#endif
 
   config_init();
   layoutHome();
   usbInit();
-  buttonUpdate();
+
   for (;;) {
     usbPoll();
-   // check_lock_screen();
-   vDISP_DeviceInfo();
+    // check_lock_screen();
+    vDISP_DeviceInfo();
   }
 
   return 0;
