@@ -40,6 +40,7 @@ bool protectAbortedByInitialize = false;
 
 bool protectButton(ButtonRequestType type, bool confirm_only) {
   ButtonRequest resp = {0};
+  bool request = false;
   bool result = false;
   bool acked = false;
 #if DEBUG_LINK
@@ -58,6 +59,9 @@ bool protectButton(ButtonRequestType type, bool confirm_only) {
 
     // check for ButtonAck
     if (msg_tiny_id == MessageType_MessageType_ButtonAck) {
+      if (acked) {
+        request = true;
+      }
       msg_tiny_id = 0xFFFF;
       acked = true;
       buttonUpdate();
@@ -80,10 +84,13 @@ bool protectButton(ButtonRequestType type, bool confirm_only) {
       if (button.DownUp) {
         vDISP_TurnPageDOWN();
       }
-      memzero(&resp, sizeof(ButtonRequest));
-      resp.has_code = true;
-      resp.code = type;
-      msg_write(MessageType_MessageType_ButtonRequest, &resp);
+      if (request) {
+        request = false;
+        memzero(&resp, sizeof(ButtonRequest));
+        resp.has_code = true;
+        resp.code = type;
+        msg_write(MessageType_MessageType_ButtonRequest, &resp);
+      }
     }
 
     // check for Cancel / Initialize
