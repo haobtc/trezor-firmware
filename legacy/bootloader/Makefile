@@ -1,7 +1,9 @@
-NAME  = bootloader
+NAME  = bootloader2
 
 OBJS += bootloader.o
 OBJS += signatures.o
+OBJS += swd.o
+OBJS += updateble.o
 OBJS += usb.o
 
 # overrides from libtrezor

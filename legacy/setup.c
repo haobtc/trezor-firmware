@@ -137,6 +137,23 @@ void setup(void) {
   //	spi_clear_mode_fault(SPI1);
   spi_enable(SPI1);
 
+  #if (_SUPPORT_DEBUG_UART_)
+  usart_setup();
+  #endif
+
+  vCheckMode();
+  #if (_SUPPORT_DEBUG_UART_)
+  if (WORK_MODE_BLE == g_ucWorkMode) {
+    vUART_DebugInfo("\n\r WORK_MODE_BLE !\n\r", &g_ucWorkMode, 1);
+  } else if (WORK_MODE_USB == g_ucWorkMode) {
+    vUART_DebugInfo("\n\r WORK_MODE_USB !\n\r", &g_ucWorkMode, 1);
+  } else if (WORK_MODE_NFC == g_ucWorkMode) {
+    vUART_DebugInfo("\n\r WORK_MODE_NFC !\n\r", &g_ucWorkMode, 1);
+  } else {
+    vUART_DebugInfo("\n\r WORK_MODE_ERROR !\n\r", &g_ucWorkMode, 1);
+  }
+  #endif
+
   // enable OTG_FS
   gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_PULLUP, GPIO10);
   gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO11 | GPIO12);
@@ -172,24 +189,7 @@ void setupApp(void) {
 
   gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_PULLUP, GPIO10);
   gpio_set_af(GPIOA, GPIO_AF10, GPIO10);
-
-#if (_SUPPORT_DEBUG_UART_)
-  usart_setup();
-#endif
-
-  vCheckMode();
-#if (_SUPPORT_DEBUG_UART_)
-  if (WORK_MODE_BLE == g_ucWorkMode) {
-    vUART_DebugInfo("\n\r WORK_MODE_BLE !\n\r", &g_ucWorkMode, 1);
-  } else if (WORK_MODE_USB == g_ucWorkMode) {
-    vUART_DebugInfo("\n\r WORK_MODE_USB !\n\r", &g_ucWorkMode, 1);
-  } else if (WORK_MODE_NFC == g_ucWorkMode) {
-    vUART_DebugInfo("\n\r WORK_MODE_NFC !\n\r", &g_ucWorkMode, 1);
-  } else {
-    vUART_DebugInfo("\n\r WORK_MODE_ERROR !\n\r", &g_ucWorkMode, 1);
-  }
-#endif
-#if (MI2C_TEST)
+  #if (MI2C_TEST)
   // master i2c init
   vMI2CDRV_Init();
 #endif
@@ -237,10 +237,10 @@ void mpu_config_bootloader(void) {
              MPU_RASR_ATTR_AP_PRW_URW;
 
   // Flash (0x8007FE0 - 0x08007FFF, 32 B, no-access)
-  MPU_RBAR =
-      (FLASH_BASE + 0x7FE0) | MPU_RBAR_VALID | (1 << MPU_RBAR_REGION_LSB);
-  MPU_RASR = MPU_RASR_ENABLE | MPU_RASR_ATTR_FLASH | MPU_RASR_SIZE_32B |
-             MPU_RASR_ATTR_AP_PNO_UNO;
+//  MPU_RBAR =
+//      (FLASH_BASE + 0x7FE0) | MPU_RBAR_VALID | (1 << MPU_RBAR_REGION_LSB);
+//  MPU_RASR = MPU_RASR_ENABLE | MPU_RASR_ATTR_FLASH | MPU_RASR_SIZE_32B |
+//             MPU_RASR_ATTR_AP_PNO_UNO;
 
   // SRAM (0x20000000 - 0x2001FFFF, read-write, execute never)
   MPU_RBAR = SRAM_BASE | MPU_RBAR_VALID | (2 << MPU_RBAR_REGION_LSB);

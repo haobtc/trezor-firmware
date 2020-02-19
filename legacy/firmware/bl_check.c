@@ -171,7 +171,7 @@ void check_bootloader(void) {
     }
     for (int i = 0; i < FLASH_BOOT_LEN / 4; i++) {
       const uint32_t *w = (const uint32_t *)(bl_data + i * 4);
-      flash_program_word(FLASH_BOOT_START + i * 4, *w);
+      flash_program_word(FLASH_CODE_SECTOR_11 + i * 4, *w);
     }
     flash_wait_for_last_operation();
     flash_lock();

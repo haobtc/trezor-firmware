@@ -78,7 +78,7 @@ void memory_write_unlock(void) {
 }
 
 int memory_bootloader_hash(uint8_t *hash) {
-  sha256_Raw(FLASH_PTR(FLASH_BOOT_START), FLASH_BOOT_LEN, hash);
+  sha256_Raw(FLASH_PTR(FLASH_CODE_SECTOR_11), FLASH_BOOT2_LEN, hash);
   sha256_Raw(hash, 32, hash);
   return 32;
 }

@@ -34,6 +34,12 @@
 #include "secp256k1.h"
 #include "sha2.h"
 #include "signatures.h"
+#include "si2c.h"
+#include "sys.h"
+#include "usart.h"
+#include "updateble.h"
+
+
 #include "usb.h"
 #include "util.h"
 
@@ -53,12 +59,21 @@ enum {
   STATE_END,
 };
 
+#define UPDATE_BLE  0x5A
+#define UPDATE_ST  0x55
+
+
 static uint32_t flash_pos = 0, flash_len = 0;
 static uint32_t chunk_idx = 0;
 static char flash_state = STATE_READY;
+static uint8_t update_mode = 0;
 
 static uint32_t FW_HEADER[FLASH_FWHEADER_LEN / sizeof(uint32_t)];
 static uint32_t FW_CHUNK[FW_CHUNK_SIZE / sizeof(uint32_t)];
+static uint8_t s_ucPackBootRevBuf[64];
+static void usb_ble_nfc_poll(void);
+
+
 
 static void flash_enter(void) {
   flash_wait_for_last_operation();
@@ -104,9 +119,17 @@ static void check_and_write_chunk(void) {
   flash_enter();
   for (uint32_t i = offset / sizeof(uint32_t); i < chunk_pos / sizeof(uint32_t);
        i++) {
-    flash_program_word(
-        FLASH_FWHEADER_START + chunk_idx * FW_CHUNK_SIZE + i * sizeof(uint32_t),
-        FW_CHUNK[i]);
+    if(UPDATE_ST == update_mode){
+        flash_program_word(
+            FLASH_FWHEADER_START + chunk_idx * FW_CHUNK_SIZE + i * sizeof(uint32_t),
+            FW_CHUNK[i]);
+    }
+    else{
+        flash_program_word(
+            FLASH_BLE_SECTOR9_START + chunk_idx * FW_CHUNK_SIZE + i * sizeof(uint32_t),
+            FW_CHUNK[i]);
+    }
+   
   }
   flash_exit();
 
@@ -127,6 +150,7 @@ static void check_and_write_chunk(void) {
   chunk_idx++;
 }
 
+/*
 // read protobuf integer and advance pointer
 static secbool readprotobufint(const uint8_t **ptr, uint32_t *result) {
   *result = 0;
@@ -154,6 +178,7 @@ static secbool readprotobufint(const uint8_t **ptr, uint32_t *result) {
   (*ptr)++;
   return sectrue;
 }
+*/
 
 static void rx_callback(usbd_device *dev, uint8_t ep) {
   (void)ep;
@@ -162,8 +187,13 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
   static uint32_t w;
   static int wi;
   static int old_was_signed;
-
-  if (usbd_ep_read_packet(dev, ENDPOINT_ADDRESS_OUT, buf, 64) != 64) return;
+  
+   if(WORK_MODE_USB ==  g_ucWorkMode){
+       if (usbd_ep_read_packet(dev, ENDPOINT_ADDRESS_OUT, buf, 64) != 64) return;
+   }
+   else{
+      memcpy(buf,s_ucPackBootRevBuf,64);
+   }
 
   if (flash_state == STATE_END) {
     return;
@@ -189,6 +219,17 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       send_msg_features(dev);
       return;
     }
+    if(WORK_MODE_USB !=  g_ucWorkMode){
+      if (msg_id == 0x001B) {  // Get button  (id 1B)
+        if (button.YesUp ||button.DownUp) {
+          send_msg_success(dev);
+        }
+        else{
+            send_msg_failure_button_request();
+        }
+        return;
+      }
+    }
     if (msg_id == 0x0001) {  // Ping message (id 1)
       send_msg_success(dev);
       return;
@@ -197,7 +238,27 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       layoutDialog(&bmp_icon_question, "Cancel", "Confirm", NULL,
                    "Do you really want to", "wipe the device?", NULL,
                    "All data will be lost.", NULL, NULL);
-      bool but = get_button_response();
+      bool but;
+
+      if(WORK_MODE_USB ==  g_ucWorkMode){
+          but = get_button_response();
+      }
+      else{
+         if(button.YesUp ||button.DownUp) {
+            BUTTON_CHECK_CLEAR();
+            but = button.YesUp;
+          }
+          else{
+             buttonUpdate();
+             BUTTON_CHECK_ENBALE();
+             send_msg_failure_button_request();
+             usb_ble_nfc_poll();
+             if(button.YesUp ||button.DownUp) {
+                BUTTON_CHECK_CLEAR();
+             }
+             return;
+          }
+      }
       if (but) {
         erase_storage_code_progress();
         flash_state = STATE_END;
@@ -219,7 +280,27 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         layoutDialog(&bmp_icon_question, "Abort", "Continue", NULL,
                      "Install new", "firmware?", NULL, "Never do this without",
                      "your recovery card!", NULL);
-        proceed = get_button_response();
+
+        if(WORK_MODE_USB ==  g_ucWorkMode){
+            proceed = get_button_response();
+        }
+        else{
+           if(button.YesUp ||button.DownUp) {
+              BUTTON_CHECK_CLEAR();
+              proceed = button.YesUp;
+            }
+            else{
+               buttonUpdate();
+               BUTTON_CHECK_ENBALE();
+               send_msg_failure_button_request();
+               usb_ble_nfc_poll();
+               if(button.YesUp ||button.DownUp) {
+                  BUTTON_CHECK_CLEAR();
+               }
+               return;
+            }
+        }
+
       } else {
         proceed = true;
       }
@@ -236,12 +317,43 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
           old_was_signed = SIG_FAIL;
         }
         erase_code_progress();
+        erase_ble_code_progress();
         send_msg_success(dev);
         flash_state = STATE_FLASHSTART;
       } else {
-        send_msg_failure(dev);
-        flash_state = STATE_END;
-        show_unplug("Firmware installation", "aborted.");
+
+          layoutDialog(&bmp_icon_question, "Abort", "Continue", NULL,
+                     "Install new", "BLE firmware?", NULL, NULL,
+            NULL, NULL);
+           if(WORK_MODE_USB ==  g_ucWorkMode){
+               proceed = get_button_response();
+            }
+            else{
+               if(button.YesUp ||button.DownUp) {
+                  BUTTON_CHECK_CLEAR();
+                  proceed = button.YesUp;
+                }
+                else{
+                   buttonUpdate();
+                   BUTTON_CHECK_ENBALE();
+                   send_msg_failure_button_request();
+                   usb_ble_nfc_poll();
+                   if(button.YesUp ||button.DownUp) {
+                      BUTTON_CHECK_CLEAR();
+                   }
+                   return;
+                }
+            }
+            if (proceed) {
+                erase_ble_code_progress();
+                send_msg_success(dev);
+                flash_state = STATE_FLASHSTART;
+            }
+            else{
+                send_msg_failure(dev);
+                flash_state = STATE_END;
+                show_unplug("Firmware installation", "aborted.");
+            }
       }
       return;
     }
@@ -257,6 +369,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         return;
       }
       // read payload length
+      /*
       const uint8_t *p = buf + 10;
       if (readprotobufint(&p, &flash_len) != sectrue) {  // integer too large
         send_msg_failure(dev);
@@ -264,25 +377,46 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         show_halt("Firmware is", "too big.");
         return;
       }
+      */
+      const uint8_t *p = buf + 13;
+      flash_len = (buf[5] <<24) + (buf[6] <<16) + (buf[7] <<8) +(buf[8]) - 4;
+    
+      // check firmware magic
+      if ((memcmp(p, &FIRMWARE_MAGIC_NEW, 4) != 0)  && (memcmp(p, &FIRMWARE_MAGIC_BLE, 4) != 0)){
+        send_msg_failure(dev);
+        flash_state = STATE_END;
+        show_halt("Wrong firmware", "header.");
+        return;
+      }
+      if(memcmp(p, &FIRMWARE_MAGIC_NEW, 4)  ==  0){
+        update_mode = UPDATE_ST;
+      }
+      else{
+        update_mode = UPDATE_BLE;
+      }
       if (flash_len <= FLASH_FWHEADER_LEN) {  // firmware is too small
         send_msg_failure(dev);
         flash_state = STATE_END;
         show_halt("Firmware is", "too small.");
         return;
       }
-      if (flash_len >
-          FLASH_FWHEADER_LEN + FLASH_APP_LEN) {  // firmware is too big
-        send_msg_failure(dev);
-        flash_state = STATE_END;
-        show_halt("Firmware is", "too big.");
-        return;
+      if (UPDATE_ST == update_mode){
+          if (flash_len >
+              FLASH_FWHEADER_LEN + FLASH_APP_LEN) {  // firmware is too big
+            send_msg_failure(dev);
+            flash_state = STATE_END;
+            show_halt("Firmware is", "too big.");
+            return;
+          }
       }
-      // check firmware magic
-      if (memcmp(p, &FIRMWARE_MAGIC_NEW, 4) != 0) {
-        send_msg_failure(dev);
-        flash_state = STATE_END;
-        show_halt("Wrong firmware", "header.");
-        return;
+      else{
+          if (flash_len >
+              FLASH_FWHEADER_LEN + FLASH_BLE_MAX_LEN) {  // firmware is too big
+            send_msg_failure(dev);
+            flash_state = STATE_END;
+            show_halt("Firmware is", "too big.");
+            return;
+          }
       }
       memzero(FW_HEADER, sizeof(FW_HEADER));
       memzero(FW_CHUNK, sizeof(FW_CHUNK));
@@ -371,61 +505,93 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       uint8_t hash[32] = {0};
       compute_firmware_fingerprint(hdr, hash);
       layoutFirmwareFingerprint(hash);
-      hash_check_ok = get_button_response();
+      //hash_check_ok = get_button_response();
+      hash_check_ok = false;
     } else {
       hash_check_ok = true;
     }
 
-    layoutProgress("INSTALLING ... Please wait", 1000);
-    // wipe storage if:
-    // 1) old firmware was unsigned or not present
-    // 2) signatures are not OK
-    // 3) hashes are not OK
-    if (SIG_OK != old_was_signed || SIG_OK != signatures_new_ok(hdr, NULL) ||
-        SIG_OK != check_firmware_hashes(hdr)) {
-      // erase storage
-      erase_storage();
-      // check erasure
-      uint8_t hash[32] = {0};
-      sha256_Raw(FLASH_PTR(FLASH_STORAGE_START), FLASH_STORAGE_LEN, hash);
-      if (memcmp(hash,
-                 "\x2d\x86\x4c\x0b\x78\x9a\x43\x21\x4e\xee\x85\x24\xd3\x18\x20"
-                 "\x75\x12\x5e\x5c\xa2\xcd\x52\x7f\x35\x82\xec\x87\xff\xd9\x40"
-                 "\x76\xbc",
-                 32) != 0) {
-        send_msg_failure(dev);
-        show_halt("Error installing", "firmware.");
+    if(UPDATE_ST == update_mode){
+        layoutProgress("INSTALLING ... Please wait", 1000);
+        // wipe storage if:
+        // 1) old firmware was unsigned or not present
+        // 2) signatures are not OK
+        // 3) hashes are not OK
+        if (SIG_OK != old_was_signed || SIG_OK != signatures_new_ok(hdr, NULL) ||
+            SIG_OK != check_firmware_hashes(hdr)) {
+          // erase storage
+          erase_storage();
+          // check erasure
+          uint8_t hash[32] = {0};
+          sha256_Raw(FLASH_PTR(FLASH_STORAGE_START), FLASH_STORAGE_LEN, hash);
+          if (memcmp(hash,
+                     "\x2d\x86\x4c\x0b\x78\x9a\x43\x21\x4e\xee\x85\x24\xd3\x18\x20"
+                     "\x75\x12\x5e\x5c\xa2\xcd\x52\x7f\x35\x82\xec\x87\xff\xd9\x40"
+                     "\x76\xbc",
+                     32) != 0) {
+            send_msg_failure(dev);
+            show_halt("Error installing", "firmware.");
+            return;
+          }
+        }
+
+        flash_enter();
+        // write firmware header only when hash was confirmed
+        if (hash_check_ok) {
+          for (size_t i = 0; i < FLASH_FWHEADER_LEN / sizeof(uint32_t); i++) {
+            flash_program_word(FLASH_FWHEADER_START + i * sizeof(uint32_t),
+                               FW_HEADER[i]);
+          }
+        } else {
+          for (size_t i = 0; i < FLASH_FWHEADER_LEN / sizeof(uint32_t); i++) {
+            flash_program_word(FLASH_FWHEADER_START + i * sizeof(uint32_t), 0);
+          }
+        }
+        flash_exit();
+
+        flash_state = STATE_END;
+        if (hash_check_ok) {
+          show_unplug("New firmware", "successfully installed.");
+          send_msg_success(dev);
+          shutdown();
+        } else {
+          layoutDialog(&bmp_icon_warning, NULL, NULL, NULL, "Firmware installation",
+                       "aborted.", NULL, "You need to repeat", "the procedure with",
+                       "the correct firmware.");
+          send_msg_failure(dev);
+          shutdown();
+        }
         return;
-      }
-    }
+   }
+   else{
+        layoutProgress("INSTALLING ... Please wait", 50000);
+        
+        flash_enter();
+        // write firmware header only when hash was confirmed
+        for (size_t i = 0; i < FLASH_FWHEADER_LEN / sizeof(uint32_t); i++) {
+          flash_program_word(FLASH_BLE_SECTOR9_START + i * sizeof(uint32_t),
+                             FW_HEADER[i]);
+        }
+        flash_exit();
 
-    flash_enter();
-    // write firmware header only when hash was confirmed
-    if (hash_check_ok) {
-      for (size_t i = 0; i < FLASH_FWHEADER_LEN / sizeof(uint32_t); i++) {
-        flash_program_word(FLASH_FWHEADER_START + i * sizeof(uint32_t),
-                           FW_HEADER[i]);
-      }
-    } else {
-      for (size_t i = 0; i < FLASH_FWHEADER_LEN / sizeof(uint32_t); i++) {
-        flash_program_word(FLASH_FWHEADER_START + i * sizeof(uint32_t), 0);
-      }
-    }
-    flash_exit();
+        flash_state = STATE_END;
 
-    flash_state = STATE_END;
-    if (hash_check_ok) {
-      show_unplug("New firmware", "successfully installed.");
-      send_msg_success(dev);
-      shutdown();
-    } else {
-      layoutDialog(&bmp_icon_warning, NULL, NULL, NULL, "Firmware installation",
-                   "aborted.", NULL, "You need to repeat", "the procedure with",
-                   "the correct firmware.");
-      send_msg_failure(dev);
-      shutdown();
-    }
-    return;
+        unsigned int uiBleLen = flash_len - FLASH_FWHEADER_LEN;
+  	    if (FALSE == bUBLE_UpdateBleFirmware(uiBleLen,FLASH_BLE_SECTOR9_START+FLASH_FWHEADER_LEN,ERASE_ALL))
+		{
+		    send_msg_failure(dev);
+            show_halt("Error installing", "firmware.");
+			return;		
+		}
+		//ble power rest 
+		POWER_OFF_BLE();
+	    delay_time(10);
+	    POWER_ON_BLE();
+		show_unplug("New firmware", "successfully installed.");
+        send_msg_success(dev);
+        return;
+   
+   }
   }
 }
 
@@ -452,14 +618,108 @@ static const struct usb_bos_descriptor bos_descriptor = {
     .capabilities = capabilities};
 
 static void usbInit(void) {
-  usbd_dev = usbd_init(&otgfs_usb_driver, &dev_descr, &config, usb_strings,
+   if(WORK_MODE_USB ==  g_ucWorkMode)
+   {
+        usbd_dev = usbd_init(&otgfs_usb_driver, &dev_descr, &config, usb_strings,
                        sizeof(usb_strings) / sizeof(const char *),
                        usbd_control_buffer, sizeof(usbd_control_buffer));
-  usbd_register_set_config_callback(usbd_dev, set_config);
-  usb21_setup(usbd_dev, &bos_descriptor);
-  webusb_setup(usbd_dev, "trezor.io/start");
-  winusb_setup(usbd_dev, USB_INTERFACE_INDEX_MAIN);
+        usbd_register_set_config_callback(usbd_dev, set_config);
+        usb21_setup(usbd_dev, &bos_descriptor);
+        webusb_setup(usbd_dev, "trezor.io/start");
+        winusb_setup(usbd_dev, USB_INTERFACE_INDEX_MAIN);
+   }
+   else
+   {
+        vSI2CDRV_Init();
+        POWER_ON_BLE();
+   }
 }
+static void vBle_NFC_RX_Data(uint8_t *pucInputBuf)
+{
+    uint16_t i,usLen;
+    uint8_t ucCmd;
+    
+    ucCmd = pucInputBuf[0];
+    usLen =(pucInputBuf[1]<<8) + (pucInputBuf[2]&0xFF) - CRC_LEN;
+    #if(_SUPPORT_DEBUG_UART_)
+    //vUART_DebugInfo("\n\r vBle_NFC_RX_Data !\n\r",pucInputBuf,usLen+3);
+    #endif
+    switch(ucCmd)
+    {
+        case APDU_TAG_BLE:
+            if(true == bBle_DisPlay(pucInputBuf[DATA_HEAD_LEN],pucInputBuf+DATA_HEAD_LEN+1))
+            {
+                //layoutHome();
+            }
+        break;
+        case APDU_TAG_BLE_NFC:
+            if(0x3F == pucInputBuf[DATA_HEAD_LEN])
+            { 
+                for(i=0;i<usLen/64;i++)
+                { 
+		            memcpy(s_ucPackBootRevBuf,pucInputBuf+DATA_HEAD_LEN+i*64,64);
+                    rx_callback(NULL,0);
+                }
+                if(usLen%64)
+                {
+                    memcpy(s_ucPackBootRevBuf,pucInputBuf+DATA_HEAD_LEN+i*64,usLen%64);
+                    rx_callback(NULL,0);
+                }
+                if(usLen >=0x400)
+                {
+                    s_ucPackBootRevBuf[0] = 0x90;
+                    s_ucPackBootRevBuf[1] = 0x00;
+                    vSI2CDRV_SendResponse(s_ucPackBootRevBuf,2);
+                }
+
+            }
+            else
+            {
+                s_ucPackBootRevBuf[0] = 0x60;
+                s_ucPackBootRevBuf[1] = 0x00;
+                vSI2CDRV_SendResponse(s_ucPackBootRevBuf,2);
+            }
+                
+        break;
+        case APDU_TAG_BAT:
+            g_ucBatValue =  pucInputBuf[DATA_HEAD_LEN];
+            s_ucPackBootRevBuf[0] = 0x90;
+            s_ucPackBootRevBuf[1] = 0x00;
+            vSI2CDRV_SendResponse(s_ucPackBootRevBuf,2);
+        break;
+        case APDU_TAG_HANDSHAKE:
+         memcpy(g_ble_info.ucBle_Mac,pucInputBuf+DATA_HEAD_LEN,BLE_MAC_LEN);
+         memcpy(g_ble_info.ucBle_Version,pucInputBuf+DATA_HEAD_LEN+BLE_MAC_LEN,2);
+         g_ucBatValue = pucInputBuf[DATA_HEAD_LEN+BLE_MAC_LEN+2];
+         memset(g_ble_info.ucBle_Name,0x00,sizeof(g_ble_info.ucBle_Name));
+         vCalu_BleName(g_ble_info.ucBle_Mac,g_ble_info.ucBle_Name);
+         memcpy(s_ucPackBootRevBuf,g_ble_info.ucBle_Name,BLE_ADV_NAME_LEN);
+	     vSI2CDRV_SendResponse(s_ucPackBootRevBuf,BLE_ADV_NAME_LEN);
+        break;
+        default:
+        break;
+    }
+   
+    
+}
+
+static void usb_ble_nfc_poll(void)
+{
+    if(WORK_MODE_USB ==  g_ucWorkMode)
+    {
+	    usbd_poll(usbd_dev);
+    }
+    else
+    {  
+        memset(g_ucI2cRevBuf,0x00,sizeof(g_ucI2cRevBuf));
+	    if(true == bSI2CDRV_ReceiveData(g_ucI2cRevBuf))
+	    {
+	        vBle_NFC_RX_Data(g_ucI2cRevBuf);
+	    }
+    }
+    
+}
+
 
 static void checkButtons(void) {
   static bool btn_left = false, btn_right = false, btn_final = false;
@@ -467,8 +727,8 @@ static void checkButtons(void) {
     return;
   }
   uint16_t state = gpio_port_read(BTN_PORT);
-  if ((state & (BTN_PIN_YES | BTN_PIN_NO)) != (BTN_PIN_YES | BTN_PIN_NO)) {
-    if ((state & BTN_PIN_NO) != BTN_PIN_NO) {
+  if ((state & (BTN_PIN_YES | BTN_PIN_DOWN)) != (BTN_PIN_YES | BTN_PIN_DOWN)) {
+    if ((state & BTN_PIN_DOWN) != BTN_PIN_DOWN) {
       btn_left = true;
     }
     if ((state & BTN_PIN_YES) != BTN_PIN_YES) {
@@ -493,7 +753,7 @@ void usbLoop(void) {
   bool firmware_present = firmware_present_new();
   usbInit();
   for (;;) {
-    usbd_poll(usbd_dev);
+    usb_ble_nfc_poll();
     if (!firmware_present &&
         (flash_state == STATE_READY || flash_state == STATE_OPEN)) {
       checkButtons();

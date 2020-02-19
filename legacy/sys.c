@@ -144,8 +144,10 @@ void vPower_Control(uint8_t ucMode) {
       }
     } else {
       s_usPower_Button_Status = POWER_BUTTON_UP;
+#ifdef APPVER
 #if (MEMORY_PROTECT == 1)
       vDISP_DeviceInfo();
+#endif
 #endif
     }
   }

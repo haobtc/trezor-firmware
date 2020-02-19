@@ -104,6 +104,10 @@ ifdef APPVER
 CFLAGS   += -DAPPVER=$(APPVER)
 LDSCRIPT  = $(TOP_DIR)/memory_app_$(APPVER).ld
 else
+LDSCRIPT  = $(TOP_DIR)/memory_boot.ld
+endif
+
+ifdef SUPPORT_BOOT_NUM
 LDSCRIPT  = $(TOP_DIR)/memory.ld
 endif
 

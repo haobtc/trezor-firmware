@@ -44,6 +44,7 @@ void layoutFirmwareFingerprint(const uint8_t *hash) {
 }
 
 bool get_button_response(void) {
+  buttonUpdate();
   do {
     delay(100000);
     buttonUpdate();
