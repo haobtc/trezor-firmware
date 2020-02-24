@@ -23,7 +23,6 @@
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/rcc.h>
 
-#include "bootloader1.h"
 #include "memory.h"
 
 #include "util.h"

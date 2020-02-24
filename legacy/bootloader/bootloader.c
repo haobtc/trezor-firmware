@@ -52,37 +52,6 @@ bool get_button_response(void) {
   return button.YesUp;
 }
 
-void show_halt(const char *line1, const char *line2) {
-  layoutDialog(&bmp_icon_error, NULL, NULL, NULL, line1, line2, NULL,
-               "Unplug your Trezor,", "reinstall firmware.", NULL);
-  shutdown();
-}
-
-void show_unplug(const char *line1, const char *line2) {
-  layoutDialog(&bmp_icon_ok, NULL, NULL, NULL, line1, line2, NULL,
-               "You may now", "unplug your Trezor.", NULL);
-}
-
-static void show_unofficial_warning(const uint8_t *hash) {
-  layoutDialog(&bmp_icon_warning, "Abort", "I'll take the risk", NULL,
-               "WARNING!", NULL, "Unofficial firmware", "detected.", NULL,
-               NULL);
-
-  bool but = get_button_response();
-  if (!but) {  // no button was pressed -> halt
-    show_halt("Unofficial firmware", "aborted.");
-  }
-
-  layoutFirmwareFingerprint(hash);
-
-  but = get_button_response();
-  if (!but) {  // no button was pressed -> halt
-    show_halt("Unofficial firmware", "aborted.");
-  }
-
-  // everything is OK, user pressed 2x Continue -> continue program
-}
-
 static void __attribute__((noreturn)) load_app(int signed_firmware) {
   // zero out SRAM
   memset_reg(_ram_start, _ram_end, 0);
@@ -92,22 +61,7 @@ static void __attribute__((noreturn)) load_app(int signed_firmware) {
 }
 
 static void bootloader_loop(void) {
-  oledClear();
-  oledDrawBitmap(0, 0, &bmp_logo64);
-  if (firmware_present_new()) {
-    oledDrawStringCenter(90, 10, "Trezor", FONT_STANDARD);
-    oledDrawStringCenter(90, 30, "Bootloader", FONT_STANDARD);
-    oledDrawStringCenter(90, 50,
-                         VERSTR(VERSION_MAJOR) "." VERSTR(
-                             VERSION_MINOR) "." VERSTR(VERSION_PATCH),
-                         FONT_STANDARD);
-  } else {
-    oledDrawStringCenter(90, 10, "Welcome!", FONT_STANDARD);
-    oledDrawStringCenter(90, 30, "Please visit", FONT_STANDARD);
-    oledDrawStringCenter(90, 50, "trezor.io/start", FONT_STANDARD);
-  }
-  oledRefresh();
-
+  bootloader_logo();
   usbLoop();
 }
 
@@ -126,21 +80,22 @@ int main(void) {
   bool left_pressed = (buttonRead() & BTN_PIN_DOWN) == 0;
 
   if (firmware_present_new() && !left_pressed) {
-    oledClear();
-    oledDrawBitmap(40, 0, &bmp_logo64_empty);
-    oledRefresh();
-
     const image_header *hdr =
         (const image_header *)FLASH_PTR(FLASH_FWHEADER_START);
 
     uint8_t fingerprint[32] = {0};
     int signed_firmware = signatures_new_ok(hdr, fingerprint);
     if (SIG_OK != signed_firmware) {
-      show_unofficial_warning(fingerprint);
+      vDisp_PromptInfo(DISP_FIRMWARE_UNOFFICIAL, true);
+      while(false == get_button_response());
+      scb_reset_system();
     }
 
     if (SIG_OK != check_firmware_hashes(hdr)) {
-      show_halt("Broken firmware", "detected.");
+      vDisp_PromptInfo(DISP_FIRMWARE_BROKEN, true);
+      while(false == get_button_response());
+      scb_reset_system();
+
     }
 
     mpu_config_off();

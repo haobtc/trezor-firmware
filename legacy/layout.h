@@ -32,5 +32,6 @@ void layoutDialog(const BITMAP *icon, const char *btnNo, const char *btnYes,
                   const char *line6);
 void layoutProgressUpdate(bool refresh);
 void layoutProgress(const char *desc, int permil);
+void layoutUpdate( int permil);
 
 #endif

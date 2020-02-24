@@ -84,6 +84,18 @@ typedef struct USB_DEVICE_INFO {
 #define DISP_UPDATE_SETTINGS 0x18        // update settings
 #define DISP_BIXIN_KEY_INITIALIZED 0x19  // Bixin Key initialized
 #define DISP_CONFIRM_PIN 0x1A            // confirm pin
+#define DISP_UPDATE_FAIL 0x1B          // Firmware fail, press OK to return to
+#define DISP_UPDATEDATA_ERROR    0x1C      // Firmware data error press OK to return to
+#define DISP_UPDATEDATA_CANCEL    0x1D      // Firmware update cancel press OK to return to
+#define DISP_UPDATE_USB 0x1E            //update usb firware
+#define DISP_UPDATE_BLE  0x1F           //update ble firware
+#define DISP_FIRMWARE_UNOFFICIAL 0x20    //Firmware unofficial
+#define DISP_FIRMWARE_BROKEN 0x21   //Firmwareble broken
+#define DISP_FIRMWARE_WIPE_DEVICE 0x22    //Firmware wipe device
+#define DISP_FIRMWARE_WIPE_SUCCESS 0x23    //Firmware wipe success
+#define DISP_FIRMWARE_WIPE_FAILE 0x24   //Firmware wipe  fail
+
+
 
 extern Ble_Info g_ble_info;
 extern USB_Info g_usb_info;
@@ -117,5 +129,6 @@ void oledSwipeRight(void);
 void oledSCA(int y1, int y2, int val);
 void oledSCAInside(int y1, int y2, int val, int a, int b);
 void vDisp_PromptInfo(uint8_t ucIndex, bool ucMode);
+void oledTransMode(void);
 
 #endif

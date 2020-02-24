@@ -21,5 +21,6 @@
 #define __USB_H__
 
 void usbLoop(void);
+void bootloader_logo(void) ;
 
 #endif

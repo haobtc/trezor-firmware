@@ -3,6 +3,7 @@
 #include <libopencm3/stm32/gpio.h>
 #include <string.h>
 #include "bitmaps.h"
+#include "prompt.h"
 #include "si2c.h"
 
 uint8_t g_ucWorkMode = 0;
@@ -56,28 +57,57 @@ bool bBle_DisPlay(uint8_t ucIndex, uint8_t *ucStr) {
   ucDelayFlag = 0x00;
   switch (ucIndex) {
     case BT_LINK:
-      oledDrawStringCenter(60, 30, "Connect by Bluetooth", FONT_STANDARD);
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 24, &bmp_cn_ble_link);
+      } else {
+        oledDrawStringCenter(60, 32, "Connect by Bluetooth", FONT_STANDARD);
+      }
       break;
     case BT_UNLINK:
-      oledDrawStringCenter(60, 30, "BLE unLink", FONT_STANDARD);
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 24, &bmp_cn_ble_unlink);
+      } else {
+        oledDrawStringCenter(60, 30, "BLE unLink", FONT_STANDARD);
+      }
       break;
     case BT_DISPIN:
       ucStr[BT_PAIR_LEN] = '\0';
-      oledDrawStringCenter(60, 30, "BLE Pair Pin", FONT_STANDARD);
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 24, &bmp_cn_ble_pair);
+      } else {
+        oledDrawStringCenter(60, 30, "BLE Pair Pin", FONT_STANDARD);
+      }
       oledDrawStringCenter(60, 50, (char *)ucStr, FONT_STANDARD);
       ucDelayFlag = 1;
       break;
     case BT_PINERROR:
-      oledDrawStringCenter(60, 30, "Pair Pin Error", FONT_STANDARD);
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 24, &bmp_cn_ble_pair_fail);
+      } else {
+        oledDrawStringCenter(60, 30, "Pair Pin Error", FONT_STANDARD);
+      }
       break;
     case BT_PINTIMEOUT:
-      oledDrawStringCenter(60, 30, "Pair Pin Timeout", FONT_STANDARD);
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 24, &bmp_cn_ble_pair_timeout);
+      } else {
+        oledDrawStringCenter(60, 30, "Pair Pin Timeout", FONT_STANDARD);
+      }
       break;
     case BT_PAIRINGSCESS:
-      oledDrawStringCenter(60, 30, "Pair Pin Success", FONT_STANDARD);
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 24, &bmp_cn_ble_pair_success);
+      } else {
+        oledDrawStringCenter(60, 30, "Pair Pin Success", FONT_STANDARD);
+      }
+
       break;
     case BT_PINCANCEL:
-      oledDrawStringCenter(60, 30, "Pair Pin Cancel", FONT_STANDARD);
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 24, &bmp_cn_ble_pair_cancel);
+      } else {
+        oledDrawStringCenter(60, 30, "Pair Pin Cancel", FONT_STANDARD);
+      }
       break;
 
     default:

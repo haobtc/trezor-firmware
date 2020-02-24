@@ -112,7 +112,10 @@ static void check_and_write_chunk(void) {
     // erase storage
     erase_storage();
     flash_state = STATE_END;
-    show_halt("Error installing", "firmware.");
+    vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
+    while(false == get_button_response());
+    scb_reset_system();
+
     return;
   }
 
@@ -140,7 +143,9 @@ static void check_and_write_chunk(void) {
       // hash should be empty if the chunk is unused
       if (!mem_is_empty(hdr->hashes + 32 * i, 32)) {
         flash_state = STATE_END;
-        show_halt("Error installing", "firmware.");
+        vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
+        while(false == get_button_response());
+        scb_reset_system();
         return;
       }
     }
@@ -221,7 +226,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
     }
     if(WORK_MODE_USB !=  g_ucWorkMode){
       if (msg_id == 0x001B) {  // Get button  (id 1B)
-        if (button.YesUp ||button.DownUp) {
+        if (button.YesUp) {
           send_msg_success(dev);
         }
         else{
@@ -235,9 +240,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       return;
     }
     if (msg_id == 0x0005) {  // WipeDevice message (id 5)
-      layoutDialog(&bmp_icon_question, "Cancel", "Confirm", NULL,
-                   "Do you really want to", "wipe the device?", NULL,
-                   "All data will be lost.", NULL, NULL);
+      vDisp_PromptInfo(DISP_FIRMWARE_WIPE_DEVICE, true);
       bool but;
 
       if(WORK_MODE_USB ==  g_ucWorkMode){
@@ -262,12 +265,16 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       if (but) {
         erase_storage_code_progress();
         flash_state = STATE_END;
-        show_unplug("Device", "successfully wiped.");
         send_msg_success(dev);
+        vDisp_PromptInfo(DISP_FIRMWARE_WIPE_SUCCESS, true);
+        while(false == get_button_response());
+        scb_reset_system();
       } else {
         flash_state = STATE_END;
-        show_unplug("Device wipe", "aborted.");
         send_msg_failure(dev);
+        vDisp_PromptInfo(DISP_FIRMWARE_WIPE_FAILE, true);
+        while(false == get_button_response());
+        scb_reset_system();
       }
       return;
     }
@@ -277,10 +284,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
     if (msg_id == 0x0006) {  // FirmwareErase message (id 6)
       bool proceed = false;
       if (firmware_present_new()) {
-        layoutDialog(&bmp_icon_question, "Abort", "Continue", NULL,
-                     "Install new", "firmware?", NULL, "Never do this without",
-                     "your recovery card!", NULL);
-
+        vDisp_PromptInfo(DISP_UPDATE_USB, true);
         if(WORK_MODE_USB ==  g_ucWorkMode){
             proceed = get_button_response();
         }
@@ -322,9 +326,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         flash_state = STATE_FLASHSTART;
       } else {
 
-          layoutDialog(&bmp_icon_question, "Abort", "Continue", NULL,
-                     "Install new", "BLE firmware?", NULL, NULL,
-            NULL, NULL);
+           vDisp_PromptInfo(DISP_UPDATE_BLE, true);
            if(WORK_MODE_USB ==  g_ucWorkMode){
                proceed = get_button_response();
             }
@@ -352,7 +354,9 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
             else{
                 send_msg_failure(dev);
                 flash_state = STATE_END;
-                show_unplug("Firmware installation", "aborted.");
+                vDisp_PromptInfo(DISP_UPDATEDATA_CANCEL, true);
+                while(false == get_button_response());
+                scb_reset_system();
             }
       }
       return;
@@ -365,7 +369,9 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       if (buf[9] != 0x0a) {  // invalid contents
         send_msg_failure(dev);
         flash_state = STATE_END;
-        show_halt("Error installing", "firmware.");
+        vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
+        while(false == get_button_response());
+        scb_reset_system();
         return;
       }
       // read payload length
@@ -385,7 +391,9 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       if ((memcmp(p, &FIRMWARE_MAGIC_NEW, 4) != 0)  && (memcmp(p, &FIRMWARE_MAGIC_BLE, 4) != 0)){
         send_msg_failure(dev);
         flash_state = STATE_END;
-        show_halt("Wrong firmware", "header.");
+        vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
+        while(false == get_button_response());
+        scb_reset_system();
         return;
       }
       if(memcmp(p, &FIRMWARE_MAGIC_NEW, 4)  ==  0){
@@ -397,7 +405,9 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       if (flash_len <= FLASH_FWHEADER_LEN) {  // firmware is too small
         send_msg_failure(dev);
         flash_state = STATE_END;
-        show_halt("Firmware is", "too small.");
+        vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
+        while(false == get_button_response());
+        scb_reset_system();
         return;
       }
       if (UPDATE_ST == update_mode){
@@ -405,7 +415,9 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
               FLASH_FWHEADER_LEN + FLASH_APP_LEN) {  // firmware is too big
             send_msg_failure(dev);
             flash_state = STATE_END;
-            show_halt("Firmware is", "too big.");
+            vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
+            while(false == get_button_response());
+            scb_reset_system();
             return;
           }
       }
@@ -414,7 +426,9 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
               FLASH_FWHEADER_LEN + FLASH_BLE_MAX_LEN) {  // firmware is too big
             send_msg_failure(dev);
             flash_state = STATE_END;
-            show_halt("Firmware is", "too big.");
+            vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
+            while(false == get_button_response());
+            scb_reset_system();
             return;
           }
       }
@@ -444,14 +458,15 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
     if (buf[0] != '?') {  // invalid contents
       send_msg_failure(dev);
       flash_state = STATE_END;
-      show_halt("Error installing", "firmware.");
+      vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
+      while(false == get_button_response());
+      scb_reset_system();
       return;
     }
 
     static uint8_t flash_anim = 0;
     if (flash_anim % 32 == 4) {
-      layoutProgress("INSTALLING ... Please wait",
-                     1000 * flash_pos / flash_len);
+      layoutUpdate(1000 * flash_pos / flash_len);
     }
     flash_anim++;
 
@@ -504,7 +519,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       }
       uint8_t hash[32] = {0};
       compute_firmware_fingerprint(hdr, hash);
-      layoutFirmwareFingerprint(hash);
+      //layoutFirmwareFingerprint(hash);
       //hash_check_ok = get_button_response();
       hash_check_ok = false;
     } else {
@@ -512,7 +527,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
     }
 
     if(UPDATE_ST == update_mode){
-        layoutProgress("INSTALLING ... Please wait", 1000);
+        layoutUpdate(1000);
         // wipe storage if:
         // 1) old firmware was unsigned or not present
         // 2) signatures are not OK
@@ -530,7 +545,9 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
                      "\x76\xbc",
                      32) != 0) {
             send_msg_failure(dev);
-            show_halt("Error installing", "firmware.");
+            vDisp_PromptInfo(DISP_UPDATE_FAIL, true);
+            while(false == get_button_response());
+            scb_reset_system();
             return;
           }
         }
@@ -551,20 +568,20 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
 
         flash_state = STATE_END;
         if (hash_check_ok) {
-          show_unplug("New firmware", "successfully installed.");
+          vDisp_PromptInfo(DISP_UPDATGE_SUCCESS, true);
           send_msg_success(dev);
-          shutdown();
+          while(false == get_button_response());
+          scb_reset_system();
         } else {
-          layoutDialog(&bmp_icon_warning, NULL, NULL, NULL, "Firmware installation",
-                       "aborted.", NULL, "You need to repeat", "the procedure with",
-                       "the correct firmware.");
+          vDisp_PromptInfo(DISP_UPDATGE_SUCCESS, true);
           send_msg_failure(dev);
-          shutdown();
+          while(false == get_button_response());
+          scb_reset_system();
         }
         return;
    }
    else{
-        layoutProgress("INSTALLING ... Please wait", 50000);
+        layoutUpdate(50000);
         
         flash_enter();
         // write firmware header only when hash was confirmed
@@ -580,15 +597,19 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
   	    if (FALSE == bUBLE_UpdateBleFirmware(uiBleLen,FLASH_BLE_SECTOR9_START+FLASH_FWHEADER_LEN,ERASE_ALL))
 		{
 		    send_msg_failure(dev);
-            show_halt("Error installing", "firmware.");
+		    vDisp_PromptInfo(DISP_UPDATE_FAIL, true);
+            while(false == get_button_response());
+            scb_reset_system();
 			return;		
 		}
 		//ble power rest 
 		POWER_OFF_BLE();
 	    delay_time(10);
 	    POWER_ON_BLE();
-		show_unplug("New firmware", "successfully installed.");
+        vDisp_PromptInfo(DISP_UPDATGE_SUCCESS, true);
         send_msg_success(dev);
+        while(false == get_button_response());
+        scb_reset_system();
         return;
    
    }
@@ -634,6 +655,25 @@ static void usbInit(void) {
         POWER_ON_BLE();
    }
 }
+void bootloader_logo(void) 
+{
+    oledClear();
+    oledDrawBitmap(0, 0, &bmp_logo64);
+    if (firmware_present_new()) {
+      oledDrawStringCenter(90, 10, "Bixin", FONT_STANDARD);
+      oledDrawStringCenter(90, 30, "Bootloader", FONT_STANDARD);
+      oledDrawStringCenter(90, 50,
+                           VERSTR(VERSION_MAJOR) "." VERSTR(
+                               VERSION_MINOR) "." VERSTR(VERSION_PATCH),
+                           FONT_STANDARD);
+    } else {
+      oledDrawStringCenter(90, 10, "Welcome!", FONT_STANDARD);
+      oledDrawStringCenter(90, 30, "Please visit", FONT_STANDARD);
+      oledDrawStringCenter(90, 50, "bixin.com", FONT_STANDARD);
+    }
+    oledRefresh();
+}
+
 static void vBle_NFC_RX_Data(uint8_t *pucInputBuf)
 {
     uint16_t i,usLen;
@@ -649,7 +689,7 @@ static void vBle_NFC_RX_Data(uint8_t *pucInputBuf)
         case APDU_TAG_BLE:
             if(true == bBle_DisPlay(pucInputBuf[DATA_HEAD_LEN],pucInputBuf+DATA_HEAD_LEN+1))
             {
-                //layoutHome();
+                 bootloader_logo();
             }
         break;
         case APDU_TAG_BLE_NFC:
@@ -667,9 +707,7 @@ static void vBle_NFC_RX_Data(uint8_t *pucInputBuf)
                 }
                 if(usLen >=0x400)
                 {
-                    s_ucPackBootRevBuf[0] = 0x90;
-                    s_ucPackBootRevBuf[1] = 0x00;
-                    vSI2CDRV_SendResponse(s_ucPackBootRevBuf,2);
+                    send_msg_success(NULL);
                 }
 
             }

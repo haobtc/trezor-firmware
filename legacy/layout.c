@@ -148,3 +148,27 @@ void layoutProgress(const char *desc, int permil) {
   }
   oledRefresh();
 }
+
+ void layoutUpdate( int permil) {
+  uint8_t y_offset;
+  //offset row
+  y_offset = 32;
+  oledClear();
+  oledTransMode();
+  // progressbar
+  oledFrame(0, OLED_HEIGHT - 8 -y_offset, OLED_WIDTH - 1, OLED_HEIGHT - 1-y_offset);
+  oledBox(1, OLED_HEIGHT - 7 -y_offset, OLED_WIDTH - 2, OLED_HEIGHT - 2-y_offset, 0);
+  permil = permil * (OLED_WIDTH - 4) / 1000;
+  if (permil < 0) {
+    permil = 0;
+  }
+  if (permil > OLED_WIDTH - 4) {
+    permil = OLED_WIDTH - 4;
+  }
+  oledBox(2, OLED_HEIGHT - 6 - y_offset, 1 + permil, OLED_HEIGHT - 3 -y_offset, 1);
+  // text
+  oledBox(0, OLED_HEIGHT - y_offset, OLED_WIDTH - 1, OLED_HEIGHT - y_offset+ 7, 0);
+  vDisp_PromptInfo(DISP_UPDATGE_APP_GOING,false);
+  oledRefresh();
+}
+

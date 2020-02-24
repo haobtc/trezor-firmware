@@ -280,32 +280,7 @@ void layoutScreensaver(void) {
 }
 
 void vlayoutLogo(void) {
-  if (WORK_MODE_BLE == g_ucWorkMode) {
-    oledDrawBitmap(0, 0, &bmp_ble);
-  } else if (WORK_MODE_USB == g_ucWorkMode) {
-    oledDrawBitmap(0, 0, &bmp_usb);
-  } else if (WORK_MODE_NFC == g_ucWorkMode) {
-    oledDrawBitmap(0, 0, &bmp_nfc);
-  } else {
-    oledDrawBitmap(0, 0, &bmp_ble);
-  }
-  if (WORK_MODE_USB != g_ucWorkMode) {
-    if (GET_USB_INSERT()) {
-      oledDrawBitmap(104, 0, &bmp_battery);  // charge
-    } else {
-      if (g_ucBatValue == 100) {
-        oledDrawBitmap(104, 0, &bmp_battery);  // 1
-      } else if (g_ucBatValue == 80) {
-        oledDrawBitmap(104, 0, &bmp_battery);  // 2/3
-      } else if (g_ucBatValue == 60) {
-        oledDrawBitmap(104, 0, &bmp_battery);  // 1/2
-      } else if (g_ucBatValue == 40) {
-        oledDrawBitmap(104, 0, &bmp_battery);  // 1/3
-      } else {
-        oledDrawBitmap(104, 0, &bmp_battery);
-      }
-    }
-  }
+  oledTransMode();
   oledDrawBitmap(0, 16, &bmp_logo);
   if (!config_isInitialized()) {
     vDisp_PromptInfo(DISP_NOT_ACTIVE, false);

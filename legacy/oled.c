@@ -647,17 +647,17 @@ void vDisp_PromptInfo(uint8_t ucIndex, bool ucMode) {
       if (g_ucLanguageFlag) {
         oledDrawBitmap(0, 32, &bmp_cn_updating_notpower_off);
       } else {
-        oledDrawStringCenter(60, 48, "Upgrading,", FONT_STANDARD);
-        oledDrawStringCenter(60, 56, "do not turn off", FONT_STANDARD);
+        oledDrawStringCenter(64, 56, "Upgrading,do not turn off ", FONT_STANDARD);
+        //oledDrawStringCenter(64, 56, "do not turn off", FONT_STANDARD);
       }
       break;
     case DISP_UPDATGE_SUCCESS:
       if (g_ucLanguageFlag) {
-        oledDrawBitmap(0, 32, &bmp_cn_update_sucess);
+        oledDrawBitmap(0, 16, &bmp_cn_update_sucess);
       } else {
-        oledDrawStringCenter(60, 40, "Firmware upgraded,", FONT_STANDARD);
-        oledDrawStringCenter(60, 48, "press OK to ", FONT_STANDARD);
-        oledDrawStringCenter(60, 56, "return to homepage", FONT_STANDARD);
+        oledDrawStringCenter(60, 24, "Firmware upgraded,", FONT_STANDARD);
+        oledDrawStringCenter(60, 32, "press OK to ", FONT_STANDARD);
+        oledDrawStringCenter(60, 40, "return to homepage", FONT_STANDARD);
       }
       break;
     case DISP_PRESSKEY_POWEROFF:
@@ -710,6 +710,99 @@ void vDisp_PromptInfo(uint8_t ucIndex, bool ucMode) {
         oledDrawBitmap(0, 16, &bmp_cn_confirm_pin);
       }
       break;
+   case DISP_UPDATE_FAIL:
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 16, &bmp_cn_update_fail);
+      } else {
+        oledDrawStringCenter(60, 24, "Firmware upgraded fail", FONT_STANDARD);
+        oledDrawStringCenter(60, 32, "press OK to ", FONT_STANDARD);
+        oledDrawStringCenter(60, 40, "return to homepage", FONT_STANDARD);
+      }
+      break;
+   case DISP_UPDATEDATA_ERROR:
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 16, &bmp_cn_updatedata_error);
+      } else {
+        oledDrawStringCenter(60, 24, "Firmware upgraded data error", FONT_STANDARD);
+        oledDrawStringCenter(60, 32, "press OK to ", FONT_STANDARD);
+        oledDrawStringCenter(60, 40, "return to homepage", FONT_STANDARD);
+      }
+      break;
+   case DISP_UPDATEDATA_CANCEL:
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 16, &bmp_cn_update_cancel);
+      } else {
+        oledDrawStringCenter(60, 24, "Firmware upgraded cancel", FONT_STANDARD);
+        oledDrawStringCenter(60, 32, "press OK to ", FONT_STANDARD);
+        oledDrawStringCenter(60, 40, "return to homepage", FONT_STANDARD);
+      }
+      break;
+   case DISP_UPDATE_USB:
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 16, &bmp_cn_update_usb_firmware);
+        oledDrawBitmap(0, 48, &bmp_cn_button_yes_no);
+      } else {
+        oledDrawStringCenter(60, 24, "Firmware upgraded usb", FONT_STANDARD);
+        oledDrawStringCenter(60, 48, "Press OK to confirm, ", FONT_STANDARD);
+        oledDrawStringCenter(60, 56, "Press < to Cancel", FONT_STANDARD);
+      }
+      break;
+  case DISP_UPDATE_BLE:
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 16, &bmp_cn_update_ble_firmware);
+        oledDrawBitmap(0, 48, &bmp_cn_button_yes_no);
+      } else {
+        oledDrawStringCenter(60, 24, "Firmware upgraded ble", FONT_STANDARD);
+        oledDrawStringCenter(60, 48, "Press OK to confirm, ", FONT_STANDARD);
+        oledDrawStringCenter(60, 56, "Press < to Cancel", FONT_STANDARD);
+      }
+      break;
+   case DISP_FIRMWARE_UNOFFICIAL:
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 16, &bmp_cn_firmware_unofficial);
+      } else {
+        oledDrawStringCenter(60, 24, "Firmware unofficial", FONT_STANDARD);
+        oledDrawStringCenter(60, 32, "press OK to ", FONT_STANDARD);
+        oledDrawStringCenter(60, 40, "return to homepage", FONT_STANDARD);
+      }
+      break;
+   case DISP_FIRMWARE_BROKEN:
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 16, &bmp_cn_firmware_broken);
+      } else {
+        oledDrawStringCenter(60, 24, "Firmware broken", FONT_STANDARD);
+        oledDrawStringCenter(60, 32, "press OK to ", FONT_STANDARD);
+        oledDrawStringCenter(60, 40, "return to homepage", FONT_STANDARD);
+      }
+      break;
+   case DISP_FIRMWARE_WIPE_DEVICE:
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 16, &bmp_cn_wipe_device);
+        oledDrawBitmap(0, 48, &bmp_cn_button_yes_no);
+      } else {
+        oledDrawStringCenter(60, 24, "Wipe device", FONT_STANDARD);
+        oledDrawStringCenter(60, 48, "Press OK to confirm, ", FONT_STANDARD);
+        oledDrawStringCenter(60, 56, "Press < to Cancel", FONT_STANDARD);
+      }
+      break;
+   case DISP_FIRMWARE_WIPE_SUCCESS:
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 16, &bmp_cn_wipe_device_success);
+      } else {
+        oledDrawStringCenter(60, 24, "Wipe device success", FONT_STANDARD);
+        oledDrawStringCenter(60, 32, "press OK to ", FONT_STANDARD);
+        oledDrawStringCenter(60, 40, "return to homepage", FONT_STANDARD);
+      }
+      break;
+   case DISP_FIRMWARE_WIPE_FAILE:
+      if (g_ucLanguageFlag) {
+        oledDrawBitmap(0, 16, &bmp_cn_wipe_device_fail);
+      } else {
+        oledDrawStringCenter(60, 24, "Wipe device  concel", FONT_STANDARD);
+        oledDrawStringCenter(60, 32, "press OK to ", FONT_STANDARD);
+        oledDrawStringCenter(60, 40, "return to homepage", FONT_STANDARD);
+      }
+      break;
     default:
       break;
   }
@@ -718,3 +811,35 @@ void vDisp_PromptInfo(uint8_t ucIndex, bool ucMode) {
   }
   g_ucPromptIndex = 0;
 }
+
+
+void oledTransMode(void) {
+    if (WORK_MODE_BLE == g_ucWorkMode) {
+       oledDrawBitmap(0, 0, &bmp_ble);
+     } else if (WORK_MODE_USB == g_ucWorkMode) {
+       oledDrawBitmap(0, 0, &bmp_usb);
+     } else if (WORK_MODE_NFC == g_ucWorkMode) {
+       oledDrawBitmap(0, 0, &bmp_nfc);
+     } else {
+       oledDrawBitmap(0, 0, &bmp_ble);
+     }
+     if (WORK_MODE_USB != g_ucWorkMode) {
+       if (GET_USB_INSERT()) {
+         oledDrawBitmap(104, 0, &bmp_battery);  // charge
+       } else {
+         if (g_ucBatValue == 100) {
+           oledDrawBitmap(104, 0, &bmp_battery);  // 1
+         } else if (g_ucBatValue == 80) {
+           oledDrawBitmap(104, 0, &bmp_battery);  // 2/3
+         } else if (g_ucBatValue == 60) {
+           oledDrawBitmap(104, 0, &bmp_battery);  // 1/2
+         } else if (g_ucBatValue == 40) {
+           oledDrawBitmap(104, 0, &bmp_battery);  // 1/3
+         } else {
+           oledDrawBitmap(104, 0, &bmp_battery);
+         }
+       }
+     }
+ }
+
+
