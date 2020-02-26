@@ -259,9 +259,13 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
              buttonUpdate();
              BUTTON_CHECK_ENBALE();
              send_msg_failure_button_request();
-             usb_ble_nfc_poll();
-             if(button.YesUp ||button.DownUp) {
-                BUTTON_CHECK_CLEAR();
+             while(1)
+             {
+                 usb_ble_nfc_poll();
+                 if(button.YesUp ||button.DownUp) {
+                    BUTTON_CHECK_CLEAR();
+                    break;
+                 }
              }
              return;
           }
@@ -301,9 +305,13 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
                buttonUpdate();
                BUTTON_CHECK_ENBALE();
                send_msg_failure_button_request();
-               usb_ble_nfc_poll();
-               if(button.YesUp ||button.DownUp) {
-                  BUTTON_CHECK_CLEAR();
+               while(1)
+               {
+                   usb_ble_nfc_poll();
+                   if(button.YesUp ||button.DownUp) {
+                      BUTTON_CHECK_CLEAR();
+                      break;
+                   }
                }
                return;
             }
@@ -352,9 +360,13 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
              buttonUpdate();
              BUTTON_CHECK_ENBALE();
              send_msg_failure_button_request();
-             usb_ble_nfc_poll();
-             if(button.YesUp ||button.DownUp) {
-                BUTTON_CHECK_CLEAR();
+             while(1)
+             {
+                 usb_ble_nfc_poll();
+                 if(button.YesUp ||button.DownUp) {
+                    BUTTON_CHECK_CLEAR();
+                    break;
+                 }
              }
              return;
           }
