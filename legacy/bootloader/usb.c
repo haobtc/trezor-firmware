@@ -231,6 +231,10 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         }
         else{
             send_msg_failure_button_request();
+            if(button.YesUp ||button.DownUp) {
+            BUTTON_CHECK_CLEAR();
+            send_msg_failure_button_request();
+           }
         }
         return;
       }
@@ -325,39 +329,46 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         send_msg_success(dev);
         flash_state = STATE_FLASHSTART;
       } else {
-
-           vDisp_PromptInfo(DISP_UPDATE_BLE, true);
-           if(WORK_MODE_USB ==  g_ucWorkMode){
-               proceed = get_button_response();
-            }
-            else{
-               if(button.YesUp ||button.DownUp) {
-                  BUTTON_CHECK_CLEAR();
-                  proceed = button.YesUp;
-                }
-                else{
-                   buttonUpdate();
-                   BUTTON_CHECK_ENBALE();
-                   send_msg_failure_button_request();
-                   usb_ble_nfc_poll();
-                   if(button.YesUp ||button.DownUp) {
-                      BUTTON_CHECK_CLEAR();
-                   }
-                   return;
-                }
-            }
-            if (proceed) {
-                erase_ble_code_progress();
-                send_msg_success(dev);
-                flash_state = STATE_FLASHSTART;
-            }
-            else{
-                send_msg_failure(dev);
-                flash_state = STATE_END;
-                vDisp_PromptInfo(DISP_UPDATEDATA_CANCEL, true);
-                while(false == get_button_response());
-                scb_reset_system();
-            }
+            send_msg_failure(dev);
+            flash_state = STATE_END;
+            vDisp_PromptInfo(DISP_UPDATEDATA_CANCEL, true);
+            while(false == get_button_response());
+            scb_reset_system();
+      }
+      return;
+    }
+    if (msg_id == 0x0002) {  // FirmwareErase message (id 2)
+      bool proceed = false;
+      vDisp_PromptInfo(DISP_UPDATE_BLE  , true);
+      if(WORK_MODE_USB ==  g_ucWorkMode){
+          proceed = get_button_response();
+      }
+      else{
+         if(button.YesUp ||button.DownUp) {
+            BUTTON_CHECK_CLEAR();
+            proceed = button.YesUp;
+          }
+          else{
+             buttonUpdate();
+             BUTTON_CHECK_ENBALE();
+             send_msg_failure_button_request();
+             usb_ble_nfc_poll();
+             if(button.YesUp ||button.DownUp) {
+                BUTTON_CHECK_CLEAR();
+             }
+             return;
+          }
+      }
+      if (proceed) {
+        erase_ble_code_progress();
+        send_msg_success(dev);
+        flash_state = STATE_FLASHSTART;
+      } else {
+        send_msg_failure(dev);
+        flash_state = STATE_END;
+        vDisp_PromptInfo(DISP_UPDATEDATA_CANCEL, true);
+        while(false == get_button_response());
+        scb_reset_system();
       }
       return;
     }
@@ -592,6 +603,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         flash_exit();
 
         flash_state = STATE_END;
+        send_msg_success(dev);
 
         unsigned int uiBleLen = flash_len - FLASH_FWHEADER_LEN;
   	    if (FALSE == bUBLE_UpdateBleFirmware(uiBleLen,FLASH_BLE_SECTOR9_START+FLASH_FWHEADER_LEN,ERASE_ALL))
@@ -607,7 +619,6 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
 	    delay_time(10);
 	    POWER_ON_BLE();
         vDisp_PromptInfo(DISP_UPDATGE_SUCCESS, true);
-        send_msg_success(dev);
         while(false == get_button_response());
         scb_reset_system();
         return;

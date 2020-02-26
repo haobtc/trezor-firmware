@@ -105,28 +105,28 @@ int signatures_old_ok(void) {
   if (sigindex1 == sigindex3) return SIG_FAIL;  // duplicate use
   if (sigindex2 == sigindex3) return SIG_FAIL;  // duplicate use
 
-  if (0 != ecdsa_verify_digest(&secp256k1, pubkey[sigindex1 - 1],
+  if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[sigindex1 - 1],
                                (const uint8_t *)FLASH_META_SIG1,
                                hash)) {  // failure
-    if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[sigindex1 - 1],
+    if (0 != ecdsa_verify_digest(&secp256k1, pubkey[sigindex1 - 1],
                                  (const uint8_t *)FLASH_META_SIG1,
                                  hash)) {  // failure
       return SIG_FAIL;
     }
   }
-  if (0 != ecdsa_verify_digest(&secp256k1, pubkey[sigindex2 - 1],
+  if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[sigindex2 - 1],
                                (const uint8_t *)FLASH_META_SIG2,
                                hash)) {  // failure
-    if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[sigindex2 - 1],
+    if (0 != ecdsa_verify_digest(&secp256k1, pubkey[sigindex2 - 1],
                                  (const uint8_t *)FLASH_META_SIG2,
                                  hash)) {  // failure
       return SIG_FAIL;
     }
   }
-  if (0 != ecdsa_verify_digest(&secp256k1, pubkey[sigindex3 - 1],
+  if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[sigindex3 - 1],
                                (const uint8_t *)FLASH_META_SIG3,
                                hash)) {  // failture
-    if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[sigindex3 - 1],
+    if (0 != ecdsa_verify_digest(&secp256k1, pubkey[sigindex3 - 1],
                                  (const uint8_t *)FLASH_META_SIG3,
                                  hash)) {  // failture
       return SIG_FAIL;
@@ -182,23 +182,23 @@ int signatures_new_ok(const image_header *hdr, uint8_t store_fingerprint[32]) {
   if (hdr->sigindex1 == hdr->sigindex3) return SIG_FAIL;  // duplicate use
   if (hdr->sigindex2 == hdr->sigindex3) return SIG_FAIL;  // duplicate use
 
-  if (0 != ecdsa_verify_digest(&secp256k1, pubkey[hdr->sigindex1 - 1],
+  if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[hdr->sigindex1 - 1],
                                hdr->sig1, hash)) {  // failure
-    if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[hdr->sigindex1 - 1],
+    if (0 != ecdsa_verify_digest(&secp256k1, pubkey[hdr->sigindex1 - 1],
                                  hdr->sig1, hash)) {  // failure
       return SIG_FAIL;
     }
   }
-  if (0 != ecdsa_verify_digest(&secp256k1, pubkey[hdr->sigindex2 - 1],
+  if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[hdr->sigindex2 - 1],
                                hdr->sig2, hash)) {  // failure
-    if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[hdr->sigindex2 - 1],
+    if (0 != ecdsa_verify_digest(&secp256k1, pubkey[hdr->sigindex2 - 1],
                                  hdr->sig2, hash)) {  // failure
       return SIG_FAIL;
     }
   }
-  if (0 != ecdsa_verify_digest(&secp256k1, pubkey[hdr->sigindex3 - 1],
+  if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[hdr->sigindex3 - 1],
                                hdr->sig3, hash)) {  // failure
-    if (0 != ecdsa_verify_digest(&secp256k1, pubkey_Bixin[hdr->sigindex3 - 1],
+    if (0 != ecdsa_verify_digest(&secp256k1, pubkey[hdr->sigindex3 - 1],
                                  hdr->sig3, hash)) {  // failure
       return SIG_FAIL;
     }
