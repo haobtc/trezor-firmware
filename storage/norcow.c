@@ -43,6 +43,8 @@
 #define NORCOW_STORAGE_START \
   (NORCOW_HEADER_LEN + NORCOW_MAGIC_LEN + NORCOW_VERSION_LEN)
 
+#if(!SUPPORT_SE)
+
 // Map from sector index to sector number.
 static const uint8_t norcow_sectors[NORCOW_SECTOR_COUNT] = NORCOW_SECTORS;
 
@@ -580,3 +582,4 @@ secbool norcow_upgrade_finish(void) {
   norcow_active_version = NORCOW_VERSION;
   return sectrue;
 }
+#endif

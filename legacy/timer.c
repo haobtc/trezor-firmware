@@ -20,6 +20,7 @@
 #include "timer.h"
 #include "buttons.h"
 #include "sys.h"
+#include "oled.h"
 
 #include <libopencm3/cm3/systick.h>
 #include <libopencm3/cm3/vector.h>
@@ -65,7 +66,7 @@ void sys_tick_handler(void) {
   if (POWER_OFF_TIMER_READY()) {
     system_millis_poweroff_start++;
     if (system_millis_poweroff_start > autoPowerOffMsDefault) {
-      // vDisp_PromptInfo(DISP_PRESSKEY_POWEROFF);
+      vDisp_PromptInfo(DISP_PRESSKEY_POWEROFF,true);
       POWER_OFF();
       while (1)
         ;

@@ -37,6 +37,8 @@
 #include "rfc6979.h"
 #include "secp256k1.h"
 
+#include "mi2c.h"
+
 // Set cp2 = cp1
 void point_copy(const curve_point *cp1, curve_point *cp2) { *cp2 = *cp1; }
 
@@ -187,9 +189,9 @@ static void generate_k_random(bignum256 *k, const bignum256 *prime) {
   do {
     int i = 0;
     for (i = 0; i < 8; i++) {
-      k->val[i] = random32() & 0x3FFFFFFF;
+      k->val[i] = random32_SE() & 0x3FFFFFFF;
     }
-    k->val[8] = random32() & 0xFFFF;
+    k->val[8] = random32_SE() & 0xFFFF;
     // check that k is in range and not zero.
   } while (bn_is_zero(k) || !bn_is_less(k, prime));
 }
@@ -676,6 +678,8 @@ int ecdsa_sign(const ecdsa_curve *curve, HasherType hasher_sign,
 int ecdsa_sign_digest(const ecdsa_curve *curve, const uint8_t *priv_key,
                       const uint8_t *digest, uint8_t *sig, uint8_t *pby,
                       int (*is_canonical)(uint8_t by, uint8_t sig[64])) {
+
+ #if(!SUPPORT_SE)
   int i = 0;
   curve_point R = {0};
   bignum256 k = {0}, z = {0}, randk = {0};
@@ -764,10 +768,27 @@ int ecdsa_sign_digest(const ecdsa_curve *curve, const uint8_t *priv_key,
   memzero(&rng, sizeof(rng));
 #endif
   return -1;
+#else
+  uint8_t ucSendBuf[64];
+  uint8_t ucRevBuf[65];
+  uint16_t usLen;
+  memcpy(ucSendBuf,digest,0x20);
+  memcpy(ucSendBuf+0x20,priv_key,0x20);
+  if (MI2C_OK != MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,ECC_INDEX_SIGN,ucSendBuf, 0x40, ucRevBuf,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA))                        
+  {
+      return -1;
+  }
+  *pby = ucRevBuf[0];
+  memcpy(sig,ucRevBuf,0x40);
+  return 0;
+  
+#endif
+
 }
 
 void ecdsa_get_public_key33(const ecdsa_curve *curve, const uint8_t *priv_key,
                             uint8_t *pub_key) {
+  #if(!SUPPORT_SE)
   curve_point R = {0};
   bignum256 k = {0};
 
@@ -778,6 +799,10 @@ void ecdsa_get_public_key33(const ecdsa_curve *curve, const uint8_t *priv_key,
   bn_write_be(&R.x, pub_key + 1);
   memzero(&R, sizeof(R));
   memzero(&k, sizeof(k));
+  #else
+  uint16_t usLen;
+  MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,ECC_INDEX_GITPUBKEY,priv_key, 0x20, pub_key,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
+  #endif
 }
 
 void ecdsa_get_public_key65(const ecdsa_curve *curve, const uint8_t *priv_key,

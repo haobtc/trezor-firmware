@@ -98,7 +98,7 @@ static uint32_t dialog_timeout = 0;
 uint32_t next_cid(void) {
   // extremely unlikely but hey
   do {
-    cid = random32();
+    cid = random32_SE();
   } while (cid == 0 || cid == CID_BROADCAST);
   return cid;
 }
@@ -494,7 +494,7 @@ static const HDNode *generateKeyHandle(const uint8_t app_id[],
   uint32_t key_path[KEY_PATH_ENTRIES] = {0};
   for (uint32_t i = 0; i < KEY_PATH_ENTRIES; i++) {
     // high bit for hardened keys
-    key_path[i] = 0x80000000 | random32();
+    key_path[i] = 0x80000000 | random32_SE();
   }
 
   // First half of keyhandle is key_path

@@ -22,6 +22,8 @@
 #include <libopencm3/stm32/memorymap.h>
 
 #include "rng.h"
+#include "mi2c.h"
+
 
 #if !EMULATOR
 uint32_t random32(void) {
@@ -34,4 +36,41 @@ uint32_t random32(void) {
   last = new;
   return new;
 }
+
+uint32_t random32_SE(void) {
+
+    #if (SUPPORT_SE)
+    uint8_t ucRandomCmd[5] = {0x00,0x84,0x00,0x00,0x04},ucRandom[16];
+    uint16_t usLen;
+    uint32_t uiRandom;
+
+    vMI2CDRV_SendData(ucRandomCmd,sizeof(ucRandomCmd));
+    usLen = sizeof(ucRandom);
+    if(true == bMI2CDRV_ReceiveData(ucRandom,&usLen))
+    {
+       uiRandom = (ucRandom[0]<<24)+ (ucRandom[1]<<16)+ (ucRandom[2]<<8)+ (ucRandom[3]);
+       return uiRandom;
+    }
+    return random32();
+    #else
+    return random32();
+    #endif
+}
+#if (SUPPORT_SE)
+void randomBuf_SE(uint8_t *ucRandom,uint8_t ucLen)
+{
+    uint8_t ucRandomCmd[5] = {0x00,0x84,0x00,0x00,0x00},ucTempBuf[32];
+    uint16_t usLen;
+    
+    ucRandomCmd[4] = ucLen;
+    usLen = sizeof(ucTempBuf);
+    vMI2CDRV_SendData(ucRandomCmd,sizeof(ucRandomCmd));
+    if(true == bMI2CDRV_ReceiveData(ucTempBuf,&usLen ))
+    {
+        memcpy(ucRandom, ucTempBuf, ucLen);
+    }
+
+}
 #endif
+#endif
+

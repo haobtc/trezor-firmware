@@ -511,14 +511,13 @@ void fsm_msgGetNextU2FCounter() {
 
 void fsm_msgBixinGenSeeds(const BixinGenSeeds *msg) {
   uint8_t ucBuf[64], i = 0;
-  ;
   uint32_t uiTemp;
 
   (void)msg;
   CHECK_NOT_INITIALIZED
   CHECK_PIN
   for (i = 0; i < 16; i++) {
-    uiTemp = random32();
+    uiTemp = random32_SE();
     memcpy(ucBuf + i * 4, &uiTemp, 4);
   }
   if (!config_setSeedsBytes(ucBuf, 64)) {

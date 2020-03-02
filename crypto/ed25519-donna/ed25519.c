@@ -18,6 +18,7 @@
 #include "ed25519.h"
 
 #include "ed25519-hash-custom.h"
+#include "mi2c.h"
 
 /*
 	Generates a (extsk[0..31]) and aExt (extsk[32..63])
@@ -42,7 +43,8 @@ ed25519_hram(hash_512bits hram, const ed25519_signature RS, const ed25519_public
 
 void
 ED25519_FN(ed25519_publickey) (const ed25519_secret_key sk, ed25519_public_key pk) {
-	bignum256modm a = {0};
+#if(!SUPPORT_SE)
+   	bignum256modm a = {0};
 	ge25519 ALIGN(16) A;
 	hash_512bits extsk = {0};
 
@@ -52,6 +54,10 @@ ED25519_FN(ed25519_publickey) (const ed25519_secret_key sk, ed25519_public_key p
 	expand256_modm(a, extsk, 32);
 	ge25519_scalarmult_base_niels(&A, ge25519_niels_base_multiples, a);
 	ge25519_pack(pk, &A);
+ #else
+    uint16_t usLen;
+    MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,EDDSA_INDEX_GITPUBKEY,sk, 0x20, pk,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
+ #endif
 }
 
 #if USE_CARDANO
@@ -99,6 +105,7 @@ ED25519_FN(ed25519_cosi_sign) (const unsigned char *m, size_t mlen, const ed2551
 
 void
 ED25519_FN(ed25519_sign) (const unsigned char *m, size_t mlen, const ed25519_secret_key sk, const ed25519_public_key pk, ed25519_signature RS) {
+#if(!SUPPORT_SE)
 	ed25519_hash_context ctx;
 	bignum256modm r = {0}, S = {0}, a = {0};
 	ge25519 ALIGN(16) R = {0};
@@ -131,6 +138,25 @@ ED25519_FN(ed25519_sign) (const unsigned char *m, size_t mlen, const ed25519_sec
 
 	/* S = (r + H(R,A,m)a) mod L */
 	contract256_modm(RS + 32, S);
+#else
+	ed25519_hash_context ctx;
+	bignum256modm r = {0}, S = {0}, a = {0};
+	ge25519 ALIGN(16) R = {0};
+	hash_512bits extsk = {0}, hashr = {0}, hram = {0};
+	uint16_t usLen;
+	uint8_t ucSendBuf[64+32];
+   
+	ed25519_extsk(extsk, sk);
+	/* r = H(aExt[32..64], m) */
+	ed25519_hash_init(&ctx);
+	ed25519_hash_update(&ctx, extsk + 32, 32);
+	ed25519_hash_update(&ctx, m, mlen);
+	ed25519_hash_final(&ctx, hashr);
+    memcpy(ucSendBuf, hashr, 64); 
+    memcpy(ucSendBuf+64, sk, 32); 
+    MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,EDDSA_INDEX_SIGN,ucSendBuf, 0x60, pk,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
+
+#endif
 }
 
 #if USE_CARDANO

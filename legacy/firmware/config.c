@@ -83,8 +83,10 @@ static const uint32_t META_MAGIC_V10 = 0xFFFFFFFF;
 #define KEY_SEEDSFLAG (19 | APP | FLAG_PUBLIC_SHIFTED)        // uint32
 #define KEY_DEBUG_LINK_PIN (255 | APP | FLAG_PUBLIC_SHIFTED)  // string(10)
 
+#if(!SUPPORT_SE)
 // The PIN value corresponding to an empty PIN.
 static const uint32_t PIN_EMPTY = 1;
+#endif
 
 static uint32_t config_uuid[UUID_SIZE / sizeof(uint32_t)];
 _Static_assert(sizeof(config_uuid) == UUID_SIZE, "config_uuid has wrong size");
@@ -132,8 +134,9 @@ static char CONFIDENTIAL sessionPassphrase[51];
 
 static secbool autoLockDelayMsCached = secfalse;
 static uint32_t autoLockDelayMs = autoLockDelayMsDefault;
-
+#if(!SUPPORT_SE)
 static const uint32_t CONFIG_VERSION = 11;
+#endif
 
 static const uint8_t FALSE_BYTE = '\x00';
 static const uint8_t TRUE_BYTE = '\x01';
@@ -228,6 +231,7 @@ static secbool config_upgrade_v10(void) {
     // wrong magic
     return secfalse;
   }
+ #if(!SUPPORT_SE)
 
   Storage config __attribute__((aligned(4)));
   _Static_assert((sizeof(config) & 3) == 0, "storage unaligned");
@@ -377,6 +381,7 @@ static secbool config_upgrade_v10(void) {
   memzero(&config, sizeof(config));
 
   session_clear(true);
+  #endif
 
   return sectrue;
 }
@@ -386,7 +391,7 @@ void config_init(void) {
   char oldTiny = usbTiny(1);
 
   config_upgrade_v10();
-
+  #if(!SUPPORT_SE)
   storage_init(&protectPinUiCallback, HW_ENTROPY_DATA, HW_ENTROPY_LEN);
   memzero(HW_ENTROPY_DATA, sizeof(HW_ENTROPY_DATA));
   //
@@ -406,6 +411,10 @@ void config_init(void) {
     storage_set(KEY_VERSION, &CONFIG_VERSION, sizeof(CONFIG_VERSION));
   }
   data2hex(config_uuid, sizeof(config_uuid), config_uuid_str);
+  #else
+  config_getLanguage(ucBuf, MAX_LANGUAGE_LEN);
+  vMI2CDRV_SynSessionKey();
+  #endif
 
   usbTiny(oldTiny);
 }
