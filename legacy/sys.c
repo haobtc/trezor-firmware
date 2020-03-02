@@ -1,35 +1,19 @@
 
-#include "sys.h"
+
+#include <libopencm3/cm3/scb.h>
 #include <libopencm3/stm32/gpio.h>
 #include <string.h>
-#include "bitmaps.h"
-#include "si2c.h"
 
-uint8_t g_ucWorkMode = 0;
+#include "bitmaps.h"
+#include "oled.h"
+#include "si2c.h"
+#include "sys.h"
+#include "timer.h"
+
 uint8_t g_ucFlag = 0;
 uint8_t g_ucBatValue = 0;
 
-uint8_t g_ucLanguageFlag = 0;
-uint8_t g_ucPromptIndex = 0;
-
-/*poweroff */
-volatile uint32_t system_millis_poweroff_start;
-
-/*
- * delay time
- */
-void delay_time(uint32_t uiDelay_Ms) {
-  uint32_t uiTimeout = uiDelay_Ms * 30000;
-  while (uiTimeout--) {
-    __asm__("nop");
-  }
-}
-void delay_us(uint32_t uiDelay_us) {
-  uint32_t uiTimeout = uiDelay_us * 30;
-  while (uiTimeout--) {
-    __asm__("nop");
-  }
-}
+extern void vDISP_DeviceInfo(void);
 
 /*
  * ble mac get ble name
@@ -93,4 +77,57 @@ bool bBle_DisPlay(uint8_t ucIndex, uint8_t *ucStr) {
   } else {
     return false;
   }
+}
+
+bool sys_nfcState(void) {
+  if (get_nfc_state() == 0) {
+    delay_time(1);
+    if (get_nfc_state() == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+bool sys_usbState(void) {
+  if (get_usb_state()) {
+    delay_time(1);
+    if (get_usb_state()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void sys_shutdown(void) {
+  oledClear();
+  oledDrawStringCenter(64, 30, "power off ...", FONT_STANDARD);
+  oledRefresh();
+  delay_time(500);
+  oledClear();
+  oledRefresh();
+  ble_power_off();
+  stm32_power_off();
+  scb_reset_system();
+}
+
+void sys_poweron(void) {
+  uint32_t count = 0;
+
+  while (1) {
+    if (get_power_key_state()) {
+      delay_time(100);
+      count++;
+      if (count > 5) {
+        oledClear();
+        oledDrawStringCenter(64, 30, "power on...", FONT_STANDARD);
+        oledRefresh();
+        while (get_power_key_state())
+          ;
+        break;
+      }
+    } else if (sys_nfcState() || sys_usbState())
+      break;
+  }
+  stm32_power_on();
+  ble_power_on();
 }

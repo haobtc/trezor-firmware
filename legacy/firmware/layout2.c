@@ -21,9 +21,9 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "../sys.h"
 #include "bignum.h"
 #include "bitmaps.h"
+#include "buttons.h"
 #include "config.h"
 #include "gettext.h"
 #include "layout2.h"
@@ -35,6 +35,7 @@
 #include "qrcodegen.h"
 #include "secp256k1.h"
 #include "string.h"
+#include "sys.h"
 #include "timer.h"
 #include "util.h"
 
@@ -281,42 +282,14 @@ void layoutScreensaver(void) {
 }
 
 void vlayoutLogo(void) {
-  if (WORK_MODE_BLE == g_ucWorkMode) {
-    oledDrawBitmap(0, 0, &bmp_ble);
-  } else if (WORK_MODE_USB == g_ucWorkMode) {
-    oledDrawBitmap(0, 0, &bmp_usb);
-  } else if (WORK_MODE_NFC == g_ucWorkMode) {
-    oledDrawBitmap(0, 0, &bmp_nfc);
-  } else {
-    oledDrawBitmap(0, 0, &bmp_ble);
-  }
-  if (WORK_MODE_USB != g_ucWorkMode) {
-    if (GET_USB_INSERT()) {
-      oledDrawBitmap(104, 0, &bmp_battery);  // charge
-    } else {
-      if (g_ucBatValue == 100) {
-        oledDrawBitmap(104, 0, &bmp_battery);  // 1
-      } else if (g_ucBatValue == 80) {
-        oledDrawBitmap(104, 0, &bmp_battery);  // 2/3
-      } else if (g_ucBatValue == 60) {
-        oledDrawBitmap(104, 0, &bmp_battery);  // 1/2
-      } else if (g_ucBatValue == 40) {
-        oledDrawBitmap(104, 0, &bmp_battery);  // 1/3
-      } else {
-        oledDrawBitmap(104, 0, &bmp_battery);
-      }
-    }
-  }
   oledDrawBitmap(0, 16, &bmp_logo);
   if (!config_isInitialized()) {
     vDisp_PromptInfo(DISP_NOT_ACTIVE, false);
-  } else {
-    if (WORK_MODE_BLE == g_ucWorkMode) {
-      oledclearLine(6);
-      oledclearLine(7);
-      vDisp_PromptInfo(DISP_BLE_NAME, false);
-    }
   }
+  oledclearLine(0);
+  oledclearLine(1);
+  vDisp_PromptInfo(DISP_BLE_NAME, false);
+  oledRefresh();
 }
 void layoutHome(void) {
   if (layoutLast == layoutHome || layoutLast == layoutScreensaver) {
@@ -1139,27 +1112,24 @@ void vGet_DeviceInfo(uint8_t ucPage) {
       s_usCurrentCount = ucPage;
       break;
     case 2:
-      if (WORK_MODE_BLE == g_ucWorkMode) {
-        oledClear();
-        oledDrawString(0, 0, (char *)BLE_NAME, FONT_STANDARD);
-        oledDrawStringCenter(64, 8, (char *)g_ble_info.ucBle_Name,
-                             FONT_STANDARD);
-        oledDrawString(0, 16, (char *)BLE_MAC, FONT_STANDARD);
-        memzero(ucBuf, sizeof(ucBuf));
-        data2hex(g_ble_info.ucBle_Mac, BLE_MAC_LEN, (char *)ucBuf);
-        oledDrawStringCenter(64, 24, (char *)ucBuf, FONT_STANDARD);
+      oledClear();
+      oledDrawString(0, 0, (char *)BLE_NAME, FONT_STANDARD);
+      oledDrawStringCenter(64, 8, (char *)g_ble_info.ucBle_Name, FONT_STANDARD);
+      oledDrawString(0, 16, (char *)BLE_MAC, FONT_STANDARD);
+      memzero(ucBuf, sizeof(ucBuf));
+      data2hex(g_ble_info.ucBle_Mac, BLE_MAC_LEN, (char *)ucBuf);
+      oledDrawStringCenter(64, 24, (char *)ucBuf, FONT_STANDARD);
 
-        oledDrawString(0, 32, (char *)BLE_VER, FONT_STANDARD);
-        memzero(ucBuf, sizeof(ucBuf));
-        ucBuf[0] = ((g_ble_info.ucBle_Version[0] & 0xF0) >> 4) + '0';
-        ucBuf[1] = '.';
-        ucBuf[2] = (g_ble_info.ucBle_Version[0] & 0x0F) + '0';
-        ucBuf[3] = '.';
-        ucBuf[4] = ((g_ble_info.ucBle_Version[1] & 0xF0) >> 4) + '0';
-        ucBuf[5] = (g_ble_info.ucBle_Version[1] & 0x0F) + '0';
+      oledDrawString(0, 32, (char *)BLE_VER, FONT_STANDARD);
+      memzero(ucBuf, sizeof(ucBuf));
+      ucBuf[0] = ((g_ble_info.ucBle_Version[0] & 0xF0) >> 4) + '0';
+      ucBuf[1] = '.';
+      ucBuf[2] = (g_ble_info.ucBle_Version[0] & 0x0F) + '0';
+      ucBuf[3] = '.';
+      ucBuf[4] = ((g_ble_info.ucBle_Version[1] & 0xF0) >> 4) + '0';
+      ucBuf[5] = (g_ble_info.ucBle_Version[1] & 0x0F) + '0';
 
-        oledDrawString(64, 48, (char *)ucBuf, FONT_STANDARD);
-      }
+      oledDrawString(64, 48, (char *)ucBuf, FONT_STANDARD);
       s_usCurrentCount = ucPage;
       break;
   }
@@ -1204,95 +1174,6 @@ void vDISP_DeviceInfo(void) {
       // lock the screen
       session_clear(true);
       layoutScreensaver();
-    }
-  }
-}
-
-/*
- * battery power on/off
- */
-void vPower_Control(uint8_t ucMode) {
-  uint32_t uiCount = 0;
-
-  if (BUTTON_POWER_ON == ucMode) {
-    while (1) {
-      if (GET_BUTTON_CANCEL()) {
-        delay_time(10);
-        uiCount++;
-        if (uiCount > 150) {
-          POWER_ON();
-          g_ucWorkMode = WORK_MODE_BLE;
-          s_usPower_Button_Status = POWER_BUTTON_DOWN;
-          break;
-        }
-
-      } else {
-        delay_time(2);
-        if (0x00 == GET_BUTTON_CANCEL()) {
-          POWER_OFF();
-          while (1)
-            ;
-        }
-      }
-    }
-
-  } else {
-    if ((WORK_MODE_USB != g_ucWorkMode) && (GET_BUTTON_CANCEL())) {
-      // no usb and button down and no nfc
-      if ((0x00 == GET_USB_INSERT()) &&
-          (POWER_BUTTON_UP == s_usPower_Button_Status) && (GET_NFC_INSERT())) {
-        while (GET_BUTTON_CANCEL()) {
-          delay_time(10);
-          uiCount++;
-          if (uiCount > 150) {
-            vDisp_PromptInfo(DISP_PRESSKEY_POWEROFF, true);
-            POWER_OFF();
-            while (1)
-              ;
-          }
-        }
-      }
-    } else {
-      s_usPower_Button_Status = POWER_BUTTON_UP;
-      vDISP_DeviceInfo();
-    }
-  }
-  if (WORK_MODE_USB != g_ucWorkMode) {
-    if (g_ucBatValue == 20) {
-      vDisp_PromptInfo(DISP_PRESSKEY_POWEROFF, true);
-      POWER_OFF();
-      while (1)
-        ;
-    }
-  }
-}
-
-/*
- * check usb/nfc/ble
- */
-void vCheckMode(void) {
-  g_ucWorkMode = 0;
-
-  // nfc mode
-  if (0x00 == GET_NFC_INSERT()) {
-    delay_time(2);
-    if (0x00 == GET_NFC_INSERT()) {
-      g_ucWorkMode = WORK_MODE_NFC;
-      POWER_ON();
-      return;
-    }
-  } else {
-    // usb mode
-    if (GET_USB_INSERT()) {
-      delay_time(2);
-      if (GET_USB_INSERT()) {
-        g_ucWorkMode = WORK_MODE_USB;
-        POWER_ON_BLE();
-        return;
-      }
-    } else {
-      // 2s power on
-      vPower_Control(BUTTON_POWER_ON);
     }
   }
 }
