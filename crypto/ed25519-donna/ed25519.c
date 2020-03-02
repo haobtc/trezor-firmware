@@ -56,7 +56,7 @@ ED25519_FN(ed25519_publickey) (const ed25519_secret_key sk, ed25519_public_key p
 	ge25519_pack(pk, &A);
  #else
     uint16_t usLen;
-    MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,EDDSA_INDEX_GITPUBKEY,sk, 0x20, pk,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
+    MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,EDDSA_INDEX_GITPUBKEY,(uint8_t *)sk, 0x20, pk,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
  #endif
 }
 
@@ -140,12 +140,14 @@ ED25519_FN(ed25519_sign) (const unsigned char *m, size_t mlen, const ed25519_sec
 	contract256_modm(RS + 32, S);
 #else
 	ed25519_hash_context ctx;
-	bignum256modm r = {0}, S = {0}, a = {0};
-	ge25519 ALIGN(16) R = {0};
-	hash_512bits extsk = {0}, hashr = {0}, hram = {0};
+	hash_512bits extsk = {0}, hashr = {0};
 	uint16_t usLen;
 	uint8_t ucSendBuf[64+32];
-   
+
+    if(pk == NULL)
+    {
+      return;
+    }
 	ed25519_extsk(extsk, sk);
 	/* r = H(aExt[32..64], m) */
 	ed25519_hash_init(&ctx);
@@ -153,8 +155,8 @@ ED25519_FN(ed25519_sign) (const unsigned char *m, size_t mlen, const ed25519_sec
 	ed25519_hash_update(&ctx, m, mlen);
 	ed25519_hash_final(&ctx, hashr);
     memcpy(ucSendBuf, hashr, 64); 
-    memcpy(ucSendBuf+64, sk, 32); 
-    MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,EDDSA_INDEX_SIGN,ucSendBuf, 0x60, pk,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
+    memcpy(ucSendBuf+64, (uint8_t *)sk, 32); 
+    MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,EDDSA_INDEX_SIGN,ucSendBuf, 0x60, (uint8_t *)RS,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
 
 #endif
 }

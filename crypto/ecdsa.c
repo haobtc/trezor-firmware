@@ -769,19 +769,35 @@ int ecdsa_sign_digest(const ecdsa_curve *curve, const uint8_t *priv_key,
 #endif
   return -1;
 #else
+  int i = 0;
   uint8_t ucSendBuf[64];
   uint8_t ucRevBuf[65];
   uint16_t usLen;
+  uint8_t by;  // signature recovery byte
+  bignum256 randk = {0};
+  
+  generate_k_random(&randk, &curve->order);
+
+
   memcpy(ucSendBuf,digest,0x20);
   memcpy(ucSendBuf+0x20,priv_key,0x20);
-  if (MI2C_OK != MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,ECC_INDEX_SIGN,ucSendBuf, 0x40, ucRevBuf,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA))                        
-  {
-      return -1;
+  for (i = 0; i < 10000; i++) {
+   if (MI2C_OK != MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,ECC_INDEX_SIGN,ucSendBuf, 0x40, ucRevBuf,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA))                        
+   {
+       return -1;
+   }
+   by = ucRevBuf[0];
+   // check if the signature is acceptable or retry
+   if (is_canonical && !is_canonical(by, sig)) {
+     continue;
+   }
+   if (pby) {
+     *pby = by;
+    }
+   memcpy(sig,ucRevBuf,0x40);
+   return 0;
   }
-  *pby = ucRevBuf[0];
-  memcpy(sig,ucRevBuf,0x40);
-  return 0;
-  
+  return -1;
 #endif
 
 }
@@ -801,7 +817,9 @@ void ecdsa_get_public_key33(const ecdsa_curve *curve, const uint8_t *priv_key,
   memzero(&k, sizeof(k));
   #else
   uint16_t usLen;
-  MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,ECC_INDEX_GITPUBKEY,priv_key, 0x20, pub_key,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
+  bignum256 randk= {0};
+  generate_k_random(&randk, &curve->order);
+  MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,ECC_INDEX_GITPUBKEY,(uint8_t *)priv_key, 0x20, pub_key,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
   #endif
 }
 
