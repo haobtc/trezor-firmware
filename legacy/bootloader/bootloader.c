@@ -33,6 +33,8 @@
 #include "signatures.h"
 #include "usb.h"
 #include "util.h"
+#include "mi2c.h"
+
 
 void layoutFirmwareFingerprint(const uint8_t *hash) {
   char str[4][17] = {0};
@@ -44,7 +46,6 @@ void layoutFirmwareFingerprint(const uint8_t *hash) {
 }
 
 bool get_button_response(void) {
-  buttonUpdate();
   do {
     delay(100000);
     buttonUpdate();
@@ -77,9 +78,16 @@ int main(void) {
 #endif
   mpu_config_bootloader();
 #ifndef APPVER
+  if(false == bCheckBleUpdate())
+  {
+    vDisp_PromptInfo(DISP_UPDATE_FAIL, true);
+    while(false == get_button_response());
+    scb_reset_core();
+  }
   bool left_pressed = (buttonRead() & BTN_PIN_DOWN) == 0;
 
-  if (firmware_present_new() && !left_pressed) {
+
+  if (firmware_present_new() && !left_pressed && (SESSION_FALG != *( uint32_t *)(BOOTLOAD_ADDR) ) ) {
     const image_header *hdr =
         (const image_header *)FLASH_PTR(FLASH_FWHEADER_START);
 
@@ -88,13 +96,13 @@ int main(void) {
     if (SIG_OK != signed_firmware) {
       vDisp_PromptInfo(DISP_FIRMWARE_UNOFFICIAL, true);
       while(false == get_button_response());
-      scb_reset_system();
+      scb_reset_core();
     }
 
     if (SIG_OK != check_firmware_hashes(hdr)) {
       vDisp_PromptInfo(DISP_FIRMWARE_BROKEN, true);
       while(false == get_button_response());
-      scb_reset_system();
+      scb_reset_core();
 
     }
 

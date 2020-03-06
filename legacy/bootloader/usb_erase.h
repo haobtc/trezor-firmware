@@ -47,3 +47,10 @@ static void erase_storage(void) {
   }
   flash_exit();
 }
+
+static void erase_bootflag(void) {
+  flash_enter();
+  flash_erase_sector(1, FLASH_CR_PROGRAM_X32);
+  flash_exit();
+}
+

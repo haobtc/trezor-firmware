@@ -114,7 +114,7 @@ static void check_and_write_chunk(void) {
     flash_state = STATE_END;
     vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
     while(false == get_button_response());
-    scb_reset_system();
+    scb_reset_core();
 
     return;
   }
@@ -145,7 +145,7 @@ static void check_and_write_chunk(void) {
         flash_state = STATE_END;
         vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
         while(false == get_button_response());
-        scb_reset_system();
+        scb_reset_core();
         return;
       }
     }
@@ -153,6 +153,30 @@ static void check_and_write_chunk(void) {
 
   memzero(FW_CHUNK, sizeof(FW_CHUNK));
   chunk_idx++;
+}
+
+bool bCheckBleUpdate(void)
+{
+    const image_header *hdr =(const image_header *)FLASH_PTR(FLASH_BLE_SECTOR9_START);
+    
+    if(SESSION_FALG == *( uint32_t *)(FLASH_BLE_SWD_UPDATE_FLAG) )
+    {
+      layoutUpdate(50000);
+      if (FALSE == bUBLE_UpdateBleFirmware(hdr->codelen,FLASH_BLE_SECTOR9_START+FLASH_FWHEADER_LEN,ERASE_ALL))
+      {
+          return false;     
+      }
+      erase_ble_code_progress();
+   	  //ble power rest 
+   	  POWER_OFF_BLE();
+      delay_time(10);
+      POWER_ON_BLE();
+      vDisp_PromptInfo(DISP_UPDATGE_SUCCESS, true);
+      while(false == get_button_response());
+      scb_reset_system();
+    }
+    return true;
+    
 }
 
 /*
@@ -226,7 +250,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
     }
     if(WORK_MODE_USB !=  g_ucWorkMode){
       if (msg_id == 0x001B) {  // Get button  (id 1B)
-        if (button.YesUp) {
+        if (button.YesUp ||button.DownUp) {
           send_msg_success(dev);
         }
         else{
@@ -276,13 +300,13 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         send_msg_success(dev);
         vDisp_PromptInfo(DISP_FIRMWARE_WIPE_SUCCESS, true);
         while(false == get_button_response());
-        scb_reset_system();
+        scb_reset_core();
       } else {
         flash_state = STATE_END;
         send_msg_failure(dev);
         vDisp_PromptInfo(DISP_FIRMWARE_WIPE_FAILE, true);
         while(false == get_button_response());
-        scb_reset_system();
+        scb_reset_core();
       }
       return;
     }
@@ -333,7 +357,6 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
           old_was_signed = SIG_FAIL;
         }
         erase_code_progress();
-        erase_ble_code_progress();
         send_msg_success(dev);
         flash_state = STATE_FLASHSTART;
       } else {
@@ -341,7 +364,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
             flash_state = STATE_END;
             vDisp_PromptInfo(DISP_UPDATEDATA_CANCEL, true);
             while(false == get_button_response());
-            scb_reset_system();
+            scb_reset_core();
       }
       return;
     }
@@ -380,7 +403,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         flash_state = STATE_END;
         vDisp_PromptInfo(DISP_UPDATEDATA_CANCEL, true);
         while(false == get_button_response());
-        scb_reset_system();
+        scb_reset_core();
       }
       return;
     }
@@ -394,7 +417,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         flash_state = STATE_END;
         vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
         while(false == get_button_response());
-        scb_reset_system();
+        scb_reset_core();
         return;
       }
       // read payload length
@@ -416,7 +439,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         flash_state = STATE_END;
         vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
         while(false == get_button_response());
-        scb_reset_system();
+        scb_reset_core();
         return;
       }
       if(memcmp(p, &FIRMWARE_MAGIC_NEW, 4)  ==  0){
@@ -430,7 +453,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         flash_state = STATE_END;
         vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
         while(false == get_button_response());
-        scb_reset_system();
+        scb_reset_core();
         return;
       }
       if (UPDATE_ST == update_mode){
@@ -440,7 +463,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
             flash_state = STATE_END;
             vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
             while(false == get_button_response());
-            scb_reset_system();
+            scb_reset_core();
             return;
           }
       }
@@ -451,7 +474,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
             flash_state = STATE_END;
             vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
             while(false == get_button_response());
-            scb_reset_system();
+            scb_reset_core();
             return;
           }
       }
@@ -483,7 +506,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
       flash_state = STATE_END;
       vDisp_PromptInfo(DISP_UPDATEDATA_ERROR, true);
       while(false == get_button_response());
-      scb_reset_system();
+      scb_reset_core();
       return;
     }
 
@@ -570,7 +593,7 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
             send_msg_failure(dev);
             vDisp_PromptInfo(DISP_UPDATE_FAIL, true);
             while(false == get_button_response());
-            scb_reset_system();
+            scb_reset_core();
             return;
           }
         }
@@ -593,46 +616,39 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         if (hash_check_ok) {
           vDisp_PromptInfo(DISP_UPDATGE_SUCCESS, true);
           send_msg_success(dev);
+          erase_bootflag();
           while(false == get_button_response());
-          scb_reset_system();
+          scb_reset_core();
         } else {
-          vDisp_PromptInfo(DISP_UPDATGE_SUCCESS, true);
+          vDisp_PromptInfo(DISP_UPDATE_FAIL, true);
           send_msg_failure(dev);
           while(false == get_button_response());
-          scb_reset_system();
+          scb_reset_core();
         }
         return;
    }
    else{
-        layoutUpdate(50000);
-        
         flash_enter();
         // write firmware header only when hash was confirmed
         for (size_t i = 0; i < FLASH_FWHEADER_LEN / sizeof(uint32_t); i++) {
           flash_program_word(FLASH_BLE_SECTOR9_START + i * sizeof(uint32_t),
                              FW_HEADER[i]);
         }
+        uint32_t flag = BLE_SWD_UPDATE_FLAG;
+        //write swd update ble flag
+        flash_program_word(FLASH_BLE_SWD_UPDATE_FLAG , flag);
+        
         flash_exit();
 
         flash_state = STATE_END;
         send_msg_success(dev);
-
-        unsigned int uiBleLen = flash_len - FLASH_FWHEADER_LEN;
-  	    if (FALSE == bUBLE_UpdateBleFirmware(uiBleLen,FLASH_BLE_SECTOR9_START+FLASH_FWHEADER_LEN,ERASE_ALL))
-		{
-		    send_msg_failure(dev);
+        if(false == bCheckBleUpdate())
+        {
+            send_msg_failure(dev);
 		    vDisp_PromptInfo(DISP_UPDATE_FAIL, true);
             while(false == get_button_response());
-            scb_reset_system();
-			return;		
-		}
-		//ble power rest 
-		POWER_OFF_BLE();
-	    delay_time(10);
-	    POWER_ON_BLE();
-        vDisp_PromptInfo(DISP_UPDATGE_SUCCESS, true);
-        while(false == get_button_response());
-        scb_reset_system();
+            scb_reset_core();
+        }
         return;
    
    }
@@ -736,7 +752,7 @@ static void vBle_NFC_RX_Data(uint8_t *pucInputBuf)
             }
             else
             {
-                s_ucPackBootRevBuf[0] = 0x60;
+                s_ucPackBootRevBuf[0] = 0x6D;
                 s_ucPackBootRevBuf[1] = 0x00;
                 vSI2CDRV_SendResponse(s_ucPackBootRevBuf,2);
             }
@@ -758,6 +774,9 @@ static void vBle_NFC_RX_Data(uint8_t *pucInputBuf)
 	     vSI2CDRV_SendResponse(s_ucPackBootRevBuf,BLE_ADV_NAME_LEN);
         break;
         default:
+          s_ucPackBootRevBuf[0] = 0x6D;
+          s_ucPackBootRevBuf[1] = 0x00;
+          vSI2CDRV_SendResponse(s_ucPackBootRevBuf,2);
         break;
     }
    

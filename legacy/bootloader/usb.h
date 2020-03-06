@@ -22,5 +22,6 @@
 
 void usbLoop(void);
 void bootloader_logo(void) ;
+bool bCheckBleUpdate(void);
 
 #endif
