@@ -137,7 +137,6 @@ static void check_and_write_chunk(void) {
   chunk_idx++;
 }
 
-/*
 // read protobuf integer and advance pointer
 static secbool readprotobufint(const uint8_t **ptr, uint32_t *result) {
   *result = 0;
@@ -165,7 +164,6 @@ static secbool readprotobufint(const uint8_t **ptr, uint32_t *result) {
   (*ptr)++;
   return sectrue;
 }
-*/
 
 static void rx_callback(usbd_device *dev, uint8_t ep) {
   (void)ep;
@@ -286,17 +284,13 @@ static void rx_callback(usbd_device *dev, uint8_t ep) {
         return;
       }
       // read payload length
-      // const uint8_t *p = buf + 10;
-      // if (readprotobufint(&p, &flash_len) != sectrue) {  // integer too large
-      //   send_msg_failure(dev);
-      //   flash_state = STATE_END;
-      //   show_halt("Firmware is", "too big.");
-      //   return;
-      // }
-
-      const uint8_t *p = buf + 13;
-      flash_len =
-          (buf[5] << 24) + (buf[6] << 16) + (buf[7] << 8) + (buf[8]) - 4;
+      const uint8_t *p = buf + 10;
+      if (readprotobufint(&p, &flash_len) != sectrue) {  // integer too large
+        send_msg_failure(dev);
+        flash_state = STATE_END;
+        show_halt("Firmware is", "too big.");
+        return;
+      }
 
       // check firmware magic
       if ((memcmp(p, &FIRMWARE_MAGIC_NEW, 4) != 0) &&
