@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/rcc.h>
+#include <libopencm3/cm3/scb.h>
 #include <stdio.h>
 #include <string.h>
 #include "sys.h"
@@ -478,4 +479,15 @@ void vSI2CDRV_SendResponse(uint8_t *pucStr, uint16_t usStrLen) {
   bSI2CDRV_WriteBytes(pucStr, usStrLen);
   POWER_OFF_TIMER_ENBALE();
   system_millis_poweroff_start = 0;
+  
+  if (WORK_MODE_BLE == g_ucWorkMode)  {
+    if(g_bBleTransMode){
+      POWER_OFF_BLE();
+    }
+  }
+  if (ENTER_BOOT__READY()){
+   delay_time(20);
+   ENTER_BOOT_CLEAR() ;
+   scb_reset_core();
+  }
 }

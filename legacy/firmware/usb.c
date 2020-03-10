@@ -409,7 +409,13 @@ void usbInit(void) {
     winusb_setup(usbd_dev, USB_INTERFACE_INDEX_MAIN);
   } else {
     vSI2CDRV_Init();
-    POWER_ON_BLE();
+    if (WORK_MODE_BLE == g_ucWorkMode)  {
+      if(g_bBleTransMode){
+          POWER_OFF_BLE();
+      }else{
+          POWER_ON_BLE();
+      }
+    }
     POWER_OFF_TIMER_ENBALE();
     system_millis_poweroff_start = 0;
   }
@@ -469,6 +475,9 @@ static void vBle_NFC_RX_Data(uint8_t *pucInputBuf) {
       vSI2CDRV_SendResponse(s_ucPackAppRevBuf, BLE_ADV_NAME_LEN);
       break;
     default:
+      s_ucPackAppRevBuf[0] = 0x6D;
+      s_ucPackAppRevBuf[1] = 0x00;
+      vSI2CDRV_SendResponse(s_ucPackAppRevBuf, 2);
       break;
   }
 }
@@ -511,6 +520,11 @@ void usbPoll(void) {
     if (data) {
       while (usbd_ep_write_packet(usbd_dev, ENDPOINT_ADDRESS_MAIN_IN, data,
                                   64) != 64) {
+      }
+      if (ENTER_BOOT__READY()){
+       delay_time(20);
+       ENTER_BOOT_CLEAR() ;
+       scb_reset_core();
       }
     }
 #if U2F_ENABLED

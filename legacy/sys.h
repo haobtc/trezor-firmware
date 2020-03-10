@@ -106,12 +106,16 @@ extern uint8_t g_ucWorkMode;
 extern uint8_t g_ucBatValue;
 extern uint8_t g_ucLanguageFlag;
 extern uint8_t g_ucPromptIndex;
+extern bool g_bBleTransMode;
+extern bool g_bSelectSEFlag;
+
+extern uint32_t g_uiFreePayFlag;
 
 extern volatile uint32_t system_millis_poweroff_start;
 
-//#define POWER_OFF_TIMER_ENBALE()    (g_ucFlag |= 0x01)
-//#define POWER_OFF_TIMER_CLEAR()     (g_ucFlag &= 0xFE)
-//#define POWER_OFF_TIMER_READY()     (g_ucFlag & 0x01)
+#define ENTER_BOOT_ENBALE()    (g_ucFlag |= 0x01)
+#define ENTER_BOOT_CLEAR()     (g_ucFlag &= 0xFE)
+#define ENTER_BOOT__READY()     (g_ucFlag & 0x01)
 
 #define BUTTON_CHECK_ENBALE() (g_ucFlag |= 0x02)
 #define BUTTON_CHECK_CLEAR() (g_ucFlag &= 0xFD)
@@ -121,7 +125,7 @@ void delay_time(uint32_t uiDelay_Ms);
 void delay_us(uint32_t uiDelay_us);
 
 void vCalu_BleName(uint8_t* pucMac, uint8_t* pucName);
-void vCheckMode(void);
+void vCheckMode(uint8_t ucMode);
 void vPower_Control(uint8_t ucMode);
 bool bBle_DisPlay(uint8_t ucIndex, uint8_t* ucStr);
 #endif

@@ -360,7 +360,7 @@ void fsm_msgClearSession(const ClearSession *msg) {
 
 void fsm_msgApplySettings(const ApplySettings *msg) {
   CHECK_PARAM(msg->has_label || msg->has_language || msg->has_use_passphrase ||
-                  msg->has_homescreen || msg->has_auto_lock_delay_ms,
+                  msg->has_homescreen || msg->has_auto_lock_delay_ms||msg->has_use_fee_pay,
               _("No setting provided"));
 
   CHECK_PIN
@@ -418,6 +418,26 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
       return;
     }
   }
+  if (msg->has_use_fee_pay) {
+    layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
+                      _("Do you really want to"), _("free pay set"),
+                      NULL, NULL, NULL, NULL);
+    if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
+      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+      layoutHome();
+      return;
+    }
+  }
+  if (msg->has_use_se) {
+    layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
+                      _("Do you really want to"), _("set whether use SE"),
+                      NULL, NULL, NULL, NULL);
+    if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
+      fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+      layoutHome();
+      return;
+    }
+  }
 
   if (msg->has_label) {
     config_setLabel(msg->label);
@@ -433,6 +453,15 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   }
   if (msg->has_auto_lock_delay_ms) {
     config_setAutoLockDelayMs(msg->auto_lock_delay_ms);
+  }
+  if (msg->has_use_fee_pay) {
+    config_setFreePayFlag(msg->use_fee_pay);
+  }
+  if (msg->has_use_ble) {
+    config_setBleTrans(msg->use_ble);
+  }
+  if (msg->has_use_se) {
+    config_setWhetherUseSE(msg->use_se);
   }
   fsm_sendSuccess(_("Settings applied"));
   layoutHome();
@@ -528,3 +557,22 @@ void fsm_msgBixinGenSeeds(const BixinGenSeeds *msg) {
   fsm_sendSuccess(_("U2F counter set"));
   layoutHome();
 }
+
+void fsm_msgBixinEnterBoot(const BixinEnterBoot *msg)
+{
+  (void)msg;
+  CHECK_PIN
+  layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
+                    _("Do you want to set"), _("enter boot?"), NULL, NULL,
+                    NULL, NULL);
+  if (!protectButton(ButtonRequestType_ButtonRequest_ProtectCall, false)) {
+    fsm_sendFailure(FailureType_Failure_ActionCancelled, NULL);
+    layoutHome();
+    return;
+  }
+  config_SetEnterBoot();
+  fsm_sendSuccess(_("enter boot success"));
+  layoutHome();
+}
+
+

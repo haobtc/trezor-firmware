@@ -13,6 +13,10 @@ uint8_t g_ucBatValue = 0;
 uint8_t s_usPower_Button_Status = POWER_BUTTON_UP;
 uint8_t g_ucLanguageFlag = 0;
 uint8_t g_ucPromptIndex = 0;
+bool g_bBleTransMode = false;
+bool g_bSelectSEFlag = false;
+uint32_t g_uiFreePayFlag = 0;
+
 
 /*poweroff */
 volatile uint32_t system_millis_poweroff_start;
@@ -147,6 +151,13 @@ void vPower_Control(uint8_t ucMode) {
         }
 
       } else {
+        if (0x00 == uiCount)
+        {
+          POWER_ON();
+          g_ucWorkMode = WORK_MODE_BLE;
+          s_usPower_Button_Status = POWER_BUTTON_DOWN;
+          break;
+        }
         delay_time(2);
         if (0x00 == GET_BUTTON_CANCEL()) {
           POWER_OFF();
@@ -194,7 +205,7 @@ void vPower_Control(uint8_t ucMode) {
 /*
  * check usb/nfc/ble
  */
-void vCheckMode(void) {
+void vCheckMode(uint8_t ucMode) {
   g_ucWorkMode = 0;
 
   // nfc mode
@@ -215,8 +226,14 @@ void vCheckMode(void) {
         return;
       }
     } else {
-      // 2s power on
-      vPower_Control(BUTTON_POWER_ON);
+      if (ucMode) {
+        // 2s power on
+        vPower_Control(BUTTON_POWER_ON);
+      }
+      else
+      {
+         g_ucWorkMode = WORK_MODE_BLE;
+      }
     }
   }
 }

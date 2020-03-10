@@ -28,8 +28,7 @@ uint16_t buttonRead(void) { return gpio_port_read(BTN_PORT); }
 #endif
 
 void buttonUpdate() {
-  static uint16_t last_state = BTN_PIN_YES | BTN_PIN_NO;
-
+  static uint16_t last_state =(BTN_PIN_YES | BTN_PIN_UP | BTN_PIN_DOWN) & (~BTN_PIN_NO);
   uint16_t state = buttonRead();
 
   if ((state & BTN_PIN_YES) == 0) {         // Yes button is down

@@ -28,7 +28,6 @@
  */
 
 #include "norcow_config.h"
-#if(!SUPPORT_SE)
 
 /*
  * Initialize storage
@@ -83,6 +82,5 @@ secbool norcow_update_bytes(const uint16_t key, const uint16_t offset,
  * Complete storage version upgrade
  */
 secbool norcow_upgrade_finish(void);
-#endif
 
 #endif

@@ -153,7 +153,6 @@ int main(void) {
   config_init();
   layoutHome();
   usbInit();
-  buttonUpdate();
   for (;;) {
     usbPoll();
     // check_lock_screen();

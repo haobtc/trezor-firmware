@@ -95,13 +95,14 @@ extern uint8_t *emulator_flash_base;
 #define FLASH_BLE_SECTOR_LAST 10
 
 #define FLASH_BLE_SECTOR9_START    (0x080A0000)
-#define FLASH_BLE_MAX_LEN    (0x40000)
-
+#define FLASH_BLE_MAX_LEN    (0x40000  - 4)
 
 //sect 11 boot2
 #define FLASH_CODE_SECTOR_11    (0x080E0000)
 #define FLASH_BOOT2_LEN (0x20000)
 
+#define FLASH_BLE_SWD_UPDATE_FLAG (FLASH_CODE_SECTOR_11 - 4)
+#define BLE_SWD_UPDATE_FLAG         (0x55AA55AA)
 
 
 void memory_protect(void);

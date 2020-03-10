@@ -18,6 +18,7 @@ from .BinanceSignedTx import BinanceSignedTx
 from .BinanceTransferMsg import BinanceTransferMsg
 from .BinanceTxRequest import BinanceTxRequest
 from .BixinGenSeeds import BixinGenSeeds
+from .BixinEnterBoot import BixinEnterBoot
 from .ButtonAck import ButtonAck
 from .ButtonRequest import ButtonRequest
 from .Cancel import Cancel

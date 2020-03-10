@@ -141,7 +141,7 @@ void setup(void) {
   usart_setup();
   #endif
 
-  vCheckMode();
+  vCheckMode(1);
   #if (_SUPPORT_DEBUG_UART_)
   if (WORK_MODE_BLE == g_ucWorkMode) {
     vUART_DebugInfo("\n\r WORK_MODE_BLE !\n\r", &g_ucWorkMode, 1);
@@ -163,6 +163,8 @@ void setup(void) {
   rcc_periph_clock_enable(RCC_OTGFS);
   // clear USB OTG_FS peripheral dedicated RAM
   memset_reg((void *)0x50020000, (void *)0x50020500, 0);
+  // master i2c init
+  vMI2CDRV_Init();
 }
 
 void setupApp(void) {
@@ -189,10 +191,7 @@ void setupApp(void) {
 
   gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_PULLUP, GPIO10);
   gpio_set_af(GPIOA, GPIO_AF10, GPIO10);
-  #if (MI2C_TEST)
-  // master i2c init
-  vMI2CDRV_Init();
-#endif
+  vCheckMode(0);
 }
 
 #define MPU_RASR_SIZE_32B (0x04UL << MPU_RASR_SIZE_LSB)

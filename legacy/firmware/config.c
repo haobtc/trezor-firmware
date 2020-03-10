@@ -81,12 +81,20 @@ static const uint32_t META_MAGIC_V10 = 0xFFFFFFFF;
 #define KEY_U2F_ROOT (17 | APP | FLAG_PUBLIC_SHIFTED)         // node
 #define KEY_SEEDS (18 | APP)                                  // bytes
 #define KEY_SEEDSFLAG (19 | APP | FLAG_PUBLIC_SHIFTED)        // uint32
+//#define KEY_PIN (20| APP_PIN )      // uint32
+//#define KEY_PINFLAG (21| APP_PIN | PIN_PUBLIC_SHIFTED)      // uint32
+//#define KEY_VERIFYPIN (22| APP_PIN)      // uint32
+
+#define KEY_TRANSBLEMODE (23 | APP ||FLAG_PUBLIC_SHIFTED )    // bool
+#define KEY_FREEPAYFLAG (24 | APP )                        // uint32
+#define KEY_SEFLAG (25| APP )                        // bool
+
+
 #define KEY_DEBUG_LINK_PIN (255 | APP | FLAG_PUBLIC_SHIFTED)  // string(10)
 
-#if(!SUPPORT_SE)
 // The PIN value corresponding to an empty PIN.
 static const uint32_t PIN_EMPTY = 1;
-#endif
+
 
 static uint32_t config_uuid[UUID_SIZE / sizeof(uint32_t)];
 _Static_assert(sizeof(config_uuid) == UUID_SIZE, "config_uuid has wrong size");
@@ -134,9 +142,8 @@ static char CONFIDENTIAL sessionPassphrase[51];
 
 static secbool autoLockDelayMsCached = secfalse;
 static uint32_t autoLockDelayMs = autoLockDelayMsDefault;
-#if(!SUPPORT_SE)
+
 static const uint32_t CONFIG_VERSION = 11;
-#endif
 
 static const uint8_t FALSE_BYTE = '\x00';
 static const uint8_t TRUE_BYTE = '\x01';
@@ -231,7 +238,6 @@ static secbool config_upgrade_v10(void) {
     // wrong magic
     return secfalse;
   }
- #if(!SUPPORT_SE)
 
   Storage config __attribute__((aligned(4)));
   _Static_assert((sizeof(config) & 3) == 0, "storage unaligned");
@@ -381,7 +387,6 @@ static secbool config_upgrade_v10(void) {
   memzero(&config, sizeof(config));
 
   session_clear(true);
-  #endif
 
   return sectrue;
 }
@@ -391,11 +396,18 @@ void config_init(void) {
   char oldTiny = usbTiny(1);
 
   config_upgrade_v10();
-  #if(!SUPPORT_SE)
   storage_init(&protectPinUiCallback, HW_ENTROPY_DATA, HW_ENTROPY_LEN);
   memzero(HW_ENTROPY_DATA, sizeof(HW_ENTROPY_DATA));
+  if (g_bSelectSEFlag)
+  {
+    vMI2CDRV_SynSessionKey();
+    g_bSelectSEFlag = true;
+    //whether use se flag store se 
+    config_getWhetherUseSE();
+  }
   //
   config_getLanguage(ucBuf, MAX_LANGUAGE_LEN);
+  config_getBleTrans();
   // Auto-unlock storage if no PIN is set.
   if (storage_is_unlocked() == secfalse && storage_has_pin() == secfalse) {
     storage_unlock(PIN_EMPTY, NULL);
@@ -411,11 +423,6 @@ void config_init(void) {
     storage_set(KEY_VERSION, &CONFIG_VERSION, sizeof(CONFIG_VERSION));
   }
   data2hex(config_uuid, sizeof(config_uuid), config_uuid_str);
-  #else
-  config_getLanguage(ucBuf, MAX_LANGUAGE_LEN);
-  vMI2CDRV_SynSessionKey();
-  #endif
-
   usbTiny(oldTiny);
 }
 
@@ -986,16 +993,64 @@ void config_setAutoLockDelayMs(uint32_t auto_lock_delay_ms) {
 }
 
 void config_wipe(void) {
-  char oldTiny = usbTiny(1);
-  storage_wipe();
-  if (storage_is_unlocked() != sectrue) {
-    storage_unlock(PIN_EMPTY, NULL);
+
+  if (!g_bSelectSEFlag){
+    char oldTiny = usbTiny(1);
+    storage_wipe();
+    if (storage_is_unlocked() != sectrue) {
+      storage_unlock(PIN_EMPTY, NULL);
+    }
+    usbTiny(oldTiny);
+    random_buffer((uint8_t *)config_uuid, sizeof(config_uuid));
+    data2hex(config_uuid, sizeof(config_uuid), config_uuid_str);
+    autoLockDelayMsCached = secfalse;
+    storage_set(KEY_UUID, config_uuid, sizeof(config_uuid));
+    storage_set(KEY_VERSION, &CONFIG_VERSION, sizeof(CONFIG_VERSION));
   }
-  usbTiny(oldTiny);
-  random_buffer((uint8_t *)config_uuid, sizeof(config_uuid));
-  data2hex(config_uuid, sizeof(config_uuid), config_uuid_str);
-  autoLockDelayMsCached = secfalse;
-  storage_set(KEY_UUID, config_uuid, sizeof(config_uuid));
-  storage_set(KEY_VERSION, &CONFIG_VERSION, sizeof(CONFIG_VERSION));
-  session_clear(false);
+  else{
+     //wipe user flash
+     session_clear(false);
+  }
 }
+
+void config_getFreePayFlag() {
+    if (sectrue != config_get_uint32(KEY_FREEPAYFLAG, &g_uiFreePayFlag)) {
+      g_uiFreePayFlag = 0;
+    }
+}
+
+void config_setFreePayFlag (uint32_t free) {
+    if (sectrue == storage_set(KEY_FREEPAYFLAG, &free,
+                               sizeof(free))) {
+     g_uiFreePayFlag = free;
+    }
+}
+void config_setBleTrans(bool mode) {
+  config_set_bool(KEY_TRANSBLEMODE, mode);
+}
+
+bool config_getBleTrans(void) {
+  return sectrue ==config_get_bool(KEY_TRANSBLEMODE, &g_bBleTransMode);
+}
+
+void config_SetEnterBoot(void ) {
+  uint32_t uiBootFlag;
+  flash_wait_for_last_operation();
+  flash_clear_status_flags();
+  flash_unlock();
+  uiBootFlag = SESSION_FALG;
+  flash_program_word(BOOTLOAD_ADDR ,uiBootFlag);
+  flash_wait_for_last_operation();
+  flash_lock();
+  ENTER_BOOT_ENBALE();
+ }
+
+ 
+void config_setWhetherUseSE(bool flag) {
+  config_set_bool(KEY_SEFLAG, flag);
+}
+
+bool config_getWhetherUseSE(void) {
+  return sectrue ==config_get_bool(KEY_SEFLAG, &g_bSelectSEFlag);
+}
+

@@ -160,6 +160,13 @@ uint32_t config_getAutoLockDelayMs(void);
 void config_setAutoLockDelayMs(uint32_t auto_lock_delay_ms);
 
 void config_wipe(void);
+void config_getFreePayFlag(void); 
+void config_setFreePayFlag(uint32_t free);
+void config_setBleTrans(bool mode);
+bool config_getBleTrans(void);
+void config_SetEnterBoot(void );
+void config_setWhetherUseSE(bool flag);
+bool config_getWhetherUseSE(void);
 
 extern char config_uuid_str[2 * UUID_SIZE + 1];
 

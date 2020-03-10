@@ -373,8 +373,25 @@ void u2fhid_msg(const APDU *a, uint32_t len) {
       u2f_version(a);
       break;
     default:
-      debugLog(0, "", "u2f unknown cmd");
-      send_u2f_error(U2F_SW_INS_NOT_SUPPORTED);
+      if(!g_bSelectSEFlag)
+      {
+        debugLog(0, "", "u2f unknown cmd");
+        send_u2f_error(U2F_SW_INS_NOT_SUPPORTED);
+      }
+      else
+      {
+        vMI2CDRV_SendData((uint8_t *)&(a->cla),len);
+        g_usMI2cRevLen = sizeof(g_ucMI2cRevBuf);
+        if(true == bMI2CDRV_ReceiveData(g_ucMI2cRevBuf,&g_usMI2cRevLen))
+        {
+            send_u2f_msg(g_ucMI2cRevBuf,g_usMI2cRevLen);
+        }
+        else
+        {
+          debugLog(0, "", "i2c rev fail");
+          send_u2f_error(U2F_SW_INS_NOT_SUPPORTED);
+        }
+      }
   }
 }
 

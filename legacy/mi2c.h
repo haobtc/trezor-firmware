@@ -5,6 +5,8 @@
 #include <string.h>
 
 #include "usart.h"
+#include "sys.h"
+
 
 #define MI2C_TIMEOUT (40000)
 #define MI2C_BUF_MAX_LEN (1024+512)
@@ -15,8 +17,11 @@
 
 //session key addr
 #define SESSION_FALG         (0x55AA55AA)
-#define SESSION_FALG_ADDR    (0x8008000)
-#define SESSION_ADDR         (0x8008004)
+#define SESSION_FALG_ADDR    (0x8004000)
+#define SESSION_ADDR         (0x8004004)
+
+#define BOOTLOAD_ADDR        (SESSION_ADDR + SESSION_KEYLEN)
+
 
 //
 #define SESSION_FALG_INDEX    (0x81)
@@ -29,14 +34,6 @@
 	(x) = ((tmp & 0xff00ff00UL) >> 8) | ((tmp & 0x00ff00ffUL) << 8); \
 }
 
-
-
-
-#define MI2C_TEST 0
-
-#ifndef SUPPORT_SE
-#define SUPPORT_SE 0
-#endif
 
 #define MI2C_OK     0xAAAAAAAAU
 #define MI2C_ERROR  0x00000000U
@@ -93,6 +90,8 @@ extern uint8_t g_ucMI2cSendBuf[MI2C_BUF_MAX_LEN];
 extern uint8_t g_ucSessionKey[SESSION_KEYLEN];
 
 extern uint16_t g_usMI2cRevLen;
+extern uint8_t g_uchash_mode;
+
 
 #define CLA     (g_ucMI2cSendBuf[0])
 #define INS     (g_ucMI2cSendBuf[1])

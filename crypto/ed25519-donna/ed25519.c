@@ -43,21 +43,25 @@ ed25519_hram(hash_512bits hram, const ed25519_signature RS, const ed25519_public
 
 void
 ED25519_FN(ed25519_publickey) (const ed25519_secret_key sk, ed25519_public_key pk) {
-#if(!SUPPORT_SE)
-   	bignum256modm a = {0};
-	ge25519 ALIGN(16) A;
-	hash_512bits extsk = {0};
+   if (!g_bSelectSEFlag){
+    bignum256modm a = {0};
+    ge25519 ALIGN(16) A;
+    hash_512bits extsk = {0};
 
-	/* A = aB */
-	ed25519_extsk(extsk, sk);
+    /* A = aB */
+    ed25519_extsk(extsk, sk);
 
-	expand256_modm(a, extsk, 32);
-	ge25519_scalarmult_base_niels(&A, ge25519_niels_base_multiples, a);
-	ge25519_pack(pk, &A);
- #else
+    expand256_modm(a, extsk, 32);
+    ge25519_scalarmult_base_niels(&A, ge25519_niels_base_multiples, a);
+    ge25519_pack(pk, &A);
+  }
+  else{
     uint16_t usLen;
-    MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,EDDSA_INDEX_GITPUBKEY,(uint8_t *)sk, 0x20, pk,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
- #endif
+    uint8_t ucSendBuf[33];
+   // ucSendBuf[0] = g_uchash_mode;
+    memcpy(ucSendBuf+1, (uint8_t *)sk, 0x20); 
+    MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,EDDSA_INDEX_GITPUBKEY,ucSendBuf, 0x21, pk,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
+  }
 }
 
 #if USE_CARDANO
@@ -105,60 +109,48 @@ ED25519_FN(ed25519_cosi_sign) (const unsigned char *m, size_t mlen, const ed2551
 
 void
 ED25519_FN(ed25519_sign) (const unsigned char *m, size_t mlen, const ed25519_secret_key sk, const ed25519_public_key pk, ed25519_signature RS) {
-#if(!SUPPORT_SE)
-	ed25519_hash_context ctx;
-	bignum256modm r = {0}, S = {0}, a = {0};
-	ge25519 ALIGN(16) R = {0};
-	hash_512bits extsk = {0}, hashr = {0}, hram = {0};
+ if (!g_bSelectSEFlag){
+  ed25519_hash_context ctx;
+  bignum256modm r = {0}, S = {0}, a = {0};
+  ge25519 ALIGN(16) R = {0};
+  hash_512bits extsk = {0}, hashr = {0}, hram = {0};
 
-	ed25519_extsk(extsk, sk);
+  ed25519_extsk(extsk, sk);
 
 
-	/* r = H(aExt[32..64], m) */
-	ed25519_hash_init(&ctx);
-	ed25519_hash_update(&ctx, extsk + 32, 32);
-	ed25519_hash_update(&ctx, m, mlen);
-	ed25519_hash_final(&ctx, hashr);
-	expand256_modm(r, hashr, 64);
+  /* r = H(aExt[32..64], m) */
+  ed25519_hash_init(&ctx);
+  ed25519_hash_update(&ctx, extsk + 32, 32);
+  ed25519_hash_update(&ctx, m, mlen);
+  ed25519_hash_final(&ctx, hashr);
+  expand256_modm(r, hashr, 64);
 
-	/* R = rB */
-	ge25519_scalarmult_base_niels(&R, ge25519_niels_base_multiples, r);
-	ge25519_pack(RS, &R);
+  /* R = rB */
+  ge25519_scalarmult_base_niels(&R, ge25519_niels_base_multiples, r);
+  ge25519_pack(RS, &R);
 
-	/* S = H(R,A,m).. */
-	ed25519_hram(hram, RS, pk, m, mlen);
-	expand256_modm(S, hram, 64);
+  /* S = H(R,A,m).. */
+  ed25519_hram(hram, RS, pk, m, mlen);
+  expand256_modm(S, hram, 64);
 
-	/* S = H(R,A,m)a */
-	expand256_modm(a, extsk, 32);
-	mul256_modm(S, S, a);
+  /* S = H(R,A,m)a */
+  expand256_modm(a, extsk, 32);
+  mul256_modm(S, S, a);
 
-	/* S = (r + H(R,A,m)a) */
-	add256_modm(S, S, r);
+  /* S = (r + H(R,A,m)a) */
+  add256_modm(S, S, r);
 
-	/* S = (r + H(R,A,m)a) mod L */
-	contract256_modm(RS + 32, S);
-#else
-	ed25519_hash_context ctx;
-	hash_512bits extsk = {0}, hashr = {0};
-	uint16_t usLen;
-	uint8_t ucSendBuf[64+32];
-
-    if(pk == NULL)
-    {
-      return;
-    }
-	ed25519_extsk(extsk, sk);
-	/* r = H(aExt[32..64], m) */
-	ed25519_hash_init(&ctx);
-	ed25519_hash_update(&ctx, extsk + 32, 32);
-	ed25519_hash_update(&ctx, m, mlen);
-	ed25519_hash_final(&ctx, hashr);
-    memcpy(ucSendBuf, hashr, 64); 
-    memcpy(ucSendBuf+64, (uint8_t *)sk, 32); 
-    MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,EDDSA_INDEX_SIGN,ucSendBuf, 0x60, (uint8_t *)RS,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
-
-#endif
+  /* S = (r + H(R,A,m)a) mod L */
+  contract256_modm(RS + 32, S);
+  }
+  else{
+  	uint16_t usLen;
+  	uint8_t ucSendBuf[1024+32];
+  	//ucSendBuf[0] = g_uchash_mode;
+    memcpy(ucSendBuf+1, m, mlen); 
+    memcpy(ucSendBuf+mlen+1, (uint8_t *)sk, 32); 
+    MI2CDRV_Transmit(MI2C_CMD_ECC_EDDSA,EDDSA_INDEX_SIGN,ucSendBuf, mlen+32+1, (uint8_t *)RS,&usLen,MI2C_ENCRYPT,SET_SESTORE_DATA);                       
+  }
 }
 
 #if USE_CARDANO

@@ -25,6 +25,8 @@ uint8_t g_ucMI2cRevBuf[MI2C_BUF_MAX_LEN];
 uint8_t g_ucMI2cSendBuf[MI2C_BUF_MAX_LEN];
 uint8_t g_ucSessionKey[SESSION_KEYLEN];
 uint16_t g_usMI2cRevLen;
+uint8_t g_uchash_mode = 0;
+
 
 static uint8_t ucXorCheck(uint8_t ucInputXor, uint8_t *pucSrc, uint16_t usLen) {
   uint16_t i;
