@@ -12,12 +12,12 @@
 #define FIRMWARE_PIN_ADDRESS 0x00030000
 
 #define NVMCREADY 0x00000001
-#define NVMCREN 0x00000000  //读使能
-#define NVMCWEN 0x00000001  //写使能
-#define NVMCEEN 0x00000002  //擦除使能
+#define NVMCREN 0x00000000  // enable read
+#define NVMCWEN 0x00000001  // enable write
+#define NVMCEEN 0x00000002  // enable erase
 
-#define NVMCERASEUICR 0x00000001  //擦除用户代码
-#define NVMCERASE 0x00000001      //整体擦除
+#define NVMCERASEUICR 0x00000001  // erase app
+#define NVMCERASE 0x00000001      // erase chip
 #define FICR_ADDRESS 0x10000000
 #define FICR_CODEPAGESIZE (FICR_ADDRESS + 0x010)
 #define FICR_CODESIZE (FICR_ADDRESS + 0x014)
@@ -26,10 +26,9 @@
 // UICR RBPCONF
 #define UICR_RBPCONF (UICR_Addr + 0x0208)
 #define RBP_EN 0xFFFFFF00  // appprotect
-#define RBP_DS 0xFFFFFFFF  //读代码保护失效
+#define RBP_DS 0xFFFFFFFF  // disable read protect
 
 #define NRF52_FALSH_PAGE_SIZE 4096
 #define EEPROM_START 0x00000000
-// #define EEPROM_START_APP 0x0001F000
 #define EEPROM_START_APP 0x00026000
 #endif

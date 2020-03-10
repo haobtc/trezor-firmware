@@ -8,7 +8,7 @@
 //----------------------------------------------------------------------
 //      Description:
 //
-//      ��ģ����Ҫʵ��ͨ����������BLE
+//      Use SWD update BLE
 //----------------------------------------------------------------------
 #include "updateble.h"
 #include "layout.h"
@@ -28,14 +28,14 @@ unsigned char bUBle_beginUpdateFirmware(void) {
 }
 
 /*****************************************************************************
- ����:	bUBLE_UpdateBleFirmware
- ���룺
-                ulBleLen��ble�̼�����
-                ulbleaddr:ble�̼��ĵ�ַ
-                ucMode��0�Ǹ��£�1������
- �����
-                ��
- ����:
+ function:	bUBLE_UpdateBleFirmware
+ input:
+                ulBleLen:ble firmware len
+                ulbleaddr:ble firmware addr
+                ucMode:0 :erase app sector 1:erase entire chip
+output:
+                none
+return:
                 TRUE/FALSE
 ******************************************************************************/
 unsigned char bUBLE_UpdateBleFirmware(unsigned int ulBleLen,
@@ -45,12 +45,12 @@ unsigned char bUBLE_UpdateBleFirmware(unsigned int ulBleLen,
   unsigned char res;
 
   templen = ulBleLen;
-  //���Ȳ���
+  // erase
   res = bUBle_beginUpdateFirmware();
   if (res == FALSE) {
     return FALSE;
   }
-  //Ȼ������
+  // program
   while (templen >= g_page_size) {
     vHAL_Read(ulbleaddr + g_offset, flashram, (unsigned short)g_page_size);
     layoutProgress("INSTALLING BLE firmware...", 1000 * g_offset / ulBleLen);
@@ -71,7 +71,7 @@ unsigned char bUBLE_UpdateBleFirmware(unsigned int ulBleLen,
     g_offset += templen;
     templen = 0;
   }
-  //������Ƿ����سɹ�
+  // verify
   layoutProgress("Checking BLE firmware...", 1000);
   res = swd_check_code(ulbleaddr, g_offset, ucMode);
   if (res != 1) {
