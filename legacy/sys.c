@@ -1,5 +1,3 @@
-
-
 #include <libopencm3/cm3/scb.h>
 #include <libopencm3/stm32/gpio.h>
 #include <string.h>

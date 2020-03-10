@@ -66,14 +66,12 @@ void i2c2_ev_isr() {
   static uint8_t dir = 0;  // 0-receive 1-send
   static uint32_t index = 0;
   sr1 = I2C_SR1(I2C2);
-  // vUART_DebugInfo("sr1 =", (uint8_t *)&sr1, 4);
   if (sr1 & I2C_SR1_ADDR) {  // EV1
     sr2 = I2C_SR2(I2C2);     // clear flag
     dir = sr2 & I2C_SR2_TRA;
   }
   if (sr1 & I2C_SR1_RxNE) {  // EV2
     g_ucI2cRevBuf[g_usI2cRevLen++] = i2c_get_data(I2C2);
-    // vUART_DebugInfo("data =", g_ucI2cRevBuf + g_usI2cRevLen - 1, 1);
     index = 0;
   }
   if (dir & I2C_SR2_TRA) {
@@ -84,7 +82,6 @@ void i2c2_ev_isr() {
           i2c_delay();
           sr1 = I2C_SR1(I2C2);
         } while ((!(sr1 & I2C_SR1_BTF)) && (!((sr1 & I2C_SR1_AF))));
-        // vUART_DebugInfo("data =", s_ucSendDataBak + index - 1, 1);
         s_usSendLenBak--;
         if (s_usSendLenBak == 0) {
           SET_COMBUS_HIGH();
@@ -98,10 +95,8 @@ void i2c2_ev_isr() {
   }
   if (sr1 & I2C_SR1_STOPF) {  // EV4
     I2C_CR1(I2C2) |= I2C_CR1_PE;
-    // vUART_DebugInfo("stop", 0, 1);
     g_bI2cRevFlag = true;
     SET_COMBUS_HIGH();
-    // SET_COMBUS_HIGH();
   }
   if (sr1 & I2C_SR1_AF) {  // EV4
     I2C_SR1(I2C2) &= ~I2C_SR1_AF;
