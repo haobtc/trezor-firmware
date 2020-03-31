@@ -251,4 +251,5 @@ enum MessageType {
 
     // bixin
     MessageType_BixinGenSeeds = 901 [(wire_in) = true];
+    MessageType_BixinEnterBoot = 902 [(wire_in) = true];
 }

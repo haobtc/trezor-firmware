@@ -22,7 +22,10 @@ void fsm_msgGetPublicKey(const GetPublicKey *msg) {
 
   CHECK_INITIALIZED
 
-  CHECK_PIN
+  if(SIGN_FREEPAY_NOPIN != (g_uiFreePayFlag & SIGN_FREEPAY_NOPIN))
+  {
+    CHECK_PIN
+  }
 
   InputScriptType script_type =
       msg->has_script_type ? msg->script_type : InputScriptType_SPENDADDRESS;
@@ -191,8 +194,10 @@ void fsm_msgGetAddress(const GetAddress *msg) {
   RESP_INIT(Address);
 
   CHECK_INITIALIZED
-
-  CHECK_PIN
+  if(SIGN_FREEPAY_NOPIN != (g_uiFreePayFlag & SIGN_FREEPAY_NOPIN))
+  {
+    CHECK_PIN
+  }
 
   const CoinInfo *coin = fsm_getCoin(msg->has_coin_name, msg->coin_name);
   if (!coin) return;

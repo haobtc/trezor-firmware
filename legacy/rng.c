@@ -40,12 +40,21 @@ uint32_t random32(void) {
 
 uint32_t random32_SE(void) {
 
+
+    return random32();
+
+    /*
     if (g_bSelectSEFlag){
       uint8_t ucRandomCmd[5] = {0x00,0x84,0x00,0x00,0x04},ucRandom[16];
       uint16_t usLen;
       uint32_t uiRandom;
 
       vMI2CDRV_SendData(ucRandomCmd,sizeof(ucRandomCmd));
+
+      if(false ==bMI2CDRV_SendData(ucRandomCmd,sizeof(ucRandomCmd)))
+      {
+        return random32();
+      }
       usLen = sizeof(ucRandom);
       if(true == bMI2CDRV_ReceiveData(ucRandom,&usLen))
       {
@@ -57,6 +66,7 @@ uint32_t random32_SE(void) {
     else{
       return random32();
     }
+    */
 }
 void randomBuf_SE(uint8_t *ucRandom,uint8_t ucLen)
 {
@@ -65,7 +75,10 @@ void randomBuf_SE(uint8_t *ucRandom,uint8_t ucLen)
     
     ucRandomCmd[4] = ucLen;
     usLen = sizeof(ucTempBuf);
-    vMI2CDRV_SendData(ucRandomCmd,sizeof(ucRandomCmd));
+    if(false ==bMI2CDRV_SendData(ucRandomCmd,sizeof(ucRandomCmd)))
+    {
+      return;
+    }
     if(true == bMI2CDRV_ReceiveData(ucTempBuf,&usLen ))
     {
         memcpy(ucRandom, ucTempBuf, ucLen);

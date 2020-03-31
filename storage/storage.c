@@ -63,7 +63,7 @@
 
 
 #define KEY_PIN (20| APP_PIN )      // uint32
-#define KEY_PINFLAG (21| APP_PIN | PIN_PUBLIC_SHIFTED)      // uint32
+#define KEY_PINFLAG (21| APP_PIN )      // uint32
 #define KEY_VERIFYPIN (22| APP_PIN)      // uint32
 
 
@@ -555,17 +555,13 @@ static secbool set_pin(uint32_t pin, const uint8_t *ext_salt) {
   {
     secbool ret;
     
-    if (pin == PIN_EMPTY) 
+    if (pin != PIN_EMPTY) 
     {
-      ret = storage_set(KEY_PINFLAG, &TRUE_BYTE, sizeof(TRUE_BYTE));
-    } 
+        ret = storage_set(KEY_PIN, &pin, sizeof(pin));
+    }
     else
     {
-        if (ext_salt != NULL) 
-        {
-           ret = storage_set(KEY_PIN, &pin, sizeof(pin));
-        }
-        ret = storage_set(KEY_PINFLAG, &FALSE_BYTE, sizeof(FALSE_BYTE));
+        ret = sectrue;
     }
     memzero(&pin, sizeof(pin));
     return ret;
@@ -667,31 +663,22 @@ static void init_wiped_storage(void) {
     // set.
     return;
   }
-  if (!g_bSelectSEFlag){
-    random_buffer(cached_keys, sizeof(cached_keys));
-    unlocked = sectrue;
-    uint32_t version = NORCOW_VERSION;
-    ensure(auth_init(), "set_storage_auth_tag failed");
-    ensure(storage_set_encrypted(VERSION_KEY, &version, sizeof(version)),
-           "set_storage_version failed");
-    ensure(norcow_set(STORAGE_UPGRADED_KEY, &FALSE_WORD, sizeof(FALSE_WORD)),
-           "set_storage_not_upgraded failed");
-    ensure(pin_logs_init(0), "init_pin_logs failed");
-    ensure(set_wipe_code(WIPE_CODE_EMPTY), "set_wipe_code failed");
+  random_buffer(cached_keys, sizeof(cached_keys));
+  unlocked = sectrue;
+  uint32_t version = NORCOW_VERSION;
+  ensure(auth_init(), "set_storage_auth_tag failed");
+  ensure(storage_set_encrypted(VERSION_KEY, &version, sizeof(version)),
+         "set_storage_version failed");
+  ensure(norcow_set(STORAGE_UPGRADED_KEY, &FALSE_WORD, sizeof(FALSE_WORD)),
+         "set_storage_not_upgraded failed");
+  ensure(pin_logs_init(0), "init_pin_logs failed");
+  ensure(set_wipe_code(WIPE_CODE_EMPTY), "set_wipe_code failed");
 
-    ui_total = DERIVE_SECS;
-    ui_rem = ui_total;
-    ui_message = PROCESSING_MSG;
-    ensure(set_pin(PIN_EMPTY, NULL), "init_pin failed");
-  }
-  else{
-    unlocked = sectrue;
+  ui_total = DERIVE_SECS;
+  ui_rem = ui_total;
+  ui_message = PROCESSING_MSG;
+  ensure(set_pin(PIN_EMPTY, NULL), "init_pin failed");
 
-    ui_total = DERIVE_SECS;
-    ui_rem = ui_total;
-    ui_message = PROCESSING_MSG;
-    ensure(set_pin(PIN_EMPTY, NULL), "init_pin failed");
-  }
 }
 
 void storage_init(PIN_UI_WAIT_CALLBACK callback, const uint8_t *salt,
@@ -1167,6 +1154,7 @@ static secbool storage_get_encrypted(const uint16_t key, void *val_dest,
 secbool storage_get(const uint16_t key, void *val_dest, const uint16_t max_len,
                     uint16_t *len) {
   const uint8_t app = key >> 8;
+
   // APP == 0 is reserved for PIN related values
   if (sectrue != initialized || app == APP_STORAGE) {
     return secfalse;
@@ -1196,7 +1184,7 @@ secbool storage_get(const uint16_t key, void *val_dest, const uint16_t max_len,
     }
   }
   else{
-     if (sectrue != MI2CDRV_Transmit(MI2C_CMD_WR_PIN,key, NULL, 0,val_dest,len,(app & FLAG_PUBLIC),GET_SESTORE_DATA)) {
+     if (sectrue != MI2CDRV_Transmit(MI2C_CMD_WR_PIN,(key&0xFF), NULL, 0,val_dest,len,(app & FLAG_PUBLIC),GET_SESTORE_DATA)) {
         return secfalse;
     }
     if (*len > max_len) {
@@ -1266,9 +1254,10 @@ secbool storage_set(const uint16_t key, const void *val, const uint16_t len) {
   if (sectrue != initialized || app == APP_STORAGE) {
     return secfalse;
   }
-
-  if (sectrue != unlocked && (app & FLAGS_WRITE) != FLAGS_WRITE) {
-    return secfalse;
+  if (!g_bSelectSEFlag){
+    if (sectrue != unlocked && (app & FLAGS_WRITE) != FLAGS_WRITE) {
+      return secfalse;
+    }
   }
 
   secbool ret = secfalse;
@@ -1281,7 +1270,7 @@ secbool storage_set(const uint16_t key, const void *val, const uint16_t len) {
     }
   }
   else{
-    ret = MI2CDRV_Transmit(MI2C_CMD_WR_PIN,key, (uint8_t *)val, len,NULL,0,(app & FLAG_PUBLIC),SET_SESTORE_DATA);
+    ret = MI2CDRV_Transmit(MI2C_CMD_WR_PIN,(key&0xFF), (uint8_t *)val, len,NULL,0,(app & FLAG_PUBLIC),SET_SESTORE_DATA);
   }
   return ret;
 }
@@ -1305,7 +1294,7 @@ secbool storage_delete(const uint16_t key) {
     return ret;
   }
   else{
-    return MI2CDRV_Transmit(MI2C_CMD_WR_PIN,key, NULL, 0,NULL,0, FLAG_PUBLIC,DELETE_SESTORE_DATA);
+    return MI2CDRV_Transmit(MI2C_CMD_WR_PIN,(key&0xFF), NULL, 0,NULL,0, FLAG_PUBLIC,DELETE_SESTORE_DATA);
   }
 }
 

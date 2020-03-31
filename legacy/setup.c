@@ -153,6 +153,9 @@ void setup(void) {
     vUART_DebugInfo("\n\r WORK_MODE_ERROR !\n\r", &g_ucWorkMode, 1);
   }
   #endif
+  //usart io set input
+  gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO2);
+  gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO3);
 
   // enable OTG_FS
   gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_PULLUP, GPIO10);

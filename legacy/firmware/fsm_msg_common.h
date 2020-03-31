@@ -418,7 +418,7 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
       return;
     }
   }
-  if (msg->has_use_fee_pay) {
+  if (msg->has_use_fee_pay && g_bSelectSEFlag) {
     layoutDialogSwipe(&bmp_icon_question, _("Cancel"), _("Confirm"), NULL,
                       _("Do you really want to"), _("free pay set"),
                       NULL, NULL, NULL, NULL);
@@ -462,6 +462,9 @@ void fsm_msgApplySettings(const ApplySettings *msg) {
   }
   if (msg->has_use_se) {
     config_setWhetherUseSE(msg->use_se);
+  }
+  if (msg->has_use_exportseeds) {
+    config_setSeedsExportFlag(msg->use_exportseeds);
   }
   fsm_sendSuccess(_("Settings applied"));
   layoutHome();
@@ -539,7 +542,7 @@ void fsm_msgGetNextU2FCounter() {
 }
 
 void fsm_msgBixinGenSeeds(const BixinGenSeeds *msg) {
-  uint8_t ucBuf[64], i = 0;
+  uint8_t ucBuf[65], i = 0;
   uint32_t uiTemp;
 
   (void)msg;
@@ -547,9 +550,10 @@ void fsm_msgBixinGenSeeds(const BixinGenSeeds *msg) {
   CHECK_PIN
   for (i = 0; i < 16; i++) {
     uiTemp = random32_SE();
-    memcpy(ucBuf + i * 4, &uiTemp, 4);
+    memcpy(ucBuf+1 + i * 4, &uiTemp, 4);
   }
-  if (!config_setSeedsBytes(ucBuf, 64)) {
+  ucBuf[0] = config_getSeedsExportFlag();
+  if (!config_setSeedsBytes(ucBuf, 65)) {
     fsm_sendFailure(FailureType_Failure_NotInitialized, NULL);
     layoutHome();
     return;

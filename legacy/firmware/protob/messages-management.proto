@@ -115,6 +115,7 @@ message ApplySettings {
     optional uint32 use_fee_pay = 8;
     optional bool use_ble = 9;
     optional bool use_se = 10;
+    optional bool use_exportseeds= 11;
     /**
     * Structure representing passphrase source
     */

@@ -7,7 +7,7 @@
 #include "timer.h"
 #include "usart.h"
 
-#define NORMAL_PCB 0
+#define NORMAL_PCB 1
 
 // Ble display
 #define BT_LINK 0x01          // Connect by Bluetooth
@@ -40,9 +40,8 @@
 #define BUTTON_POWER_OFF 0x20
 
 #define GPIO_CMBUS_PORT GPIOC
-
 #if (NORMAL_PCB)
-#define GPIO_USB_INSERT GPIO13
+#define GPIO_USB_INSERT GPIO8
 #else
 #define GPIO_USB_INSERT GPIO8
 #endif
@@ -56,7 +55,7 @@
 
 #define GPIO_SI2C_CMBUS GPIO9
 #if (NORMAL_PCB)
-#define GPIO_BLE_POWER GPIO2
+#define GPIO_BLE_POWER GPIO0
 #else
 #define GPIO_BLE_POWER GPIO10
 #endif

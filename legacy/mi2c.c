@@ -9,6 +9,8 @@
 #include "usart.h"
 #include "secbool.h"
 #include "rand.h"
+#include "aes/aes.h"
+
 
 const uint8_t SessionModeMode_ROMKEY[16] =
 {
@@ -136,7 +138,12 @@ static uint8_t bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
     }
     i2c_send_start(i2c);
     while (!(I2C_SR1(i2c) & I2C_SR1_SB))
-      ;
+    {
+      usTimeout++;
+      if (usTimeout > MI2C_TIMEOUT) {
+        break;
+      }
+    }
 
     i2c_send_7bit_address(i2c, MI2C_ADDR, MI2C_WRITE);
 
@@ -165,21 +172,41 @@ static uint8_t bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
   // send len
   for (i = 0; i < 2; i++) {
     i2c_send_data(i2c, ucLenBuf[i]);
+    usTimeout = 0;
     while (!(I2C_SR1(i2c) & (I2C_SR1_TxE)))
-      ;
+    {
+      usTimeout++;
+      if (usTimeout > MI2C_TIMEOUT) {
+        return false;
+      }
+    }
   }
   // cal xor
   ucXor = ucXorCheck(ucXor, data, ucSendLen);
   // send data
   for (i = 0; i < ucSendLen; i++) {
     i2c_send_data(i2c, data[i]);
+   usTimeout = 0;
     while (!(I2C_SR1(i2c) & (I2C_SR1_TxE)))
-      ;
+    {
+      usTimeout++;
+      if (usTimeout > MI2C_TIMEOUT) {
+        return false;
+      }
+    }
+      
   }
   // send Xor
   i2c_send_data(i2c, ucXor);
+  usTimeout = 0;
   while (!(I2C_SR1(i2c) & (I2C_SR1_TxE)))
-    ;
+  {
+    usTimeout++;
+    if (usTimeout > MI2C_TIMEOUT) {
+      return false;
+    }
+  }
+
 
   i2c_send_stop(i2c);
   delay_us(100);
@@ -231,12 +258,12 @@ uint8_t bMI2CDRV_ReceiveData(uint8_t *pucStr, uint16_t *pusRevLen) {
 /*
  *master i2c send
  */
-void vMI2CDRV_SendData(uint8_t *pucStr, uint16_t usStrLen) {
+uint8_t bMI2CDRV_SendData(uint8_t *pucStr, uint16_t usStrLen) {
   if (usStrLen > (MI2C_BUF_MAX_LEN - 3)) {
     usStrLen = MI2C_BUF_MAX_LEN - 3;
   }
 
-  bMI2CDRV_WriteBytes(MI2CX, pucStr, usStrLen);
+  return bMI2CDRV_WriteBytes(MI2CX, pucStr, usStrLen);
 }
 void  random_buffer_ST(uint8_t *buf, size_t len) {
   uint32_t r = 0;
@@ -278,6 +305,7 @@ void vMI2CDRV_SynSessionKey(void)
         if ( MI2C_OK == MI2CDRV_Transmit(MI2C_CMD_WR_PIN,SESSION_FALG_INDEX,( uint8_t *) &ucSessionMode, 1,NULL,0,0x00,SET_SESTORE_DATA) )
         {
              random_buffer_ST(ucRandom,sizeof(ucRandom));
+              memset(ucRandom,0x01,sizeof(ucRandom));
              memcpy( g_ucSessionKey,( uint8_t *)ucDefaultSessionKey,sizeof(ucDefaultSessionKey));
              if ( MI2C_OK == MI2CDRV_Transmit(MI2C_CMD_WR_PIN,SESSION_ADDR_INDEX,ucRandom, sizeof(ucRandom),NULL,0,0x00,SET_SESTORE_DATA) )
              {
@@ -305,15 +333,15 @@ void vMI2CDRV_SynSessionKey(void)
     
 }
 
-
 /*
  *master i2c send
  */
 uint32_t MI2CDRV_Transmit(uint8_t ucCmd,uint8_t ucIndex,uint8_t *pucSendData, uint16_t usSendLen,uint8_t *pucRevData,uint16_t *pusRevLen,uint8_t ucMode,uint8_t ucWRFlag)
 {
-    uint8_t ucRandom[16];
-    //p1 0 ... 255
-    ucIndex  -= 1;
+    uint8_t ucRandom[16],i;
+    uint16_t usPadLen;
+    aes_encrypt_ctx ctxe;
+    aes_decrypt_ctx ctxd;
     //se apdu
     if (MI2C_ENCRYPT == ucMode )
     {   
@@ -321,41 +349,20 @@ uint32_t MI2CDRV_Transmit(uint8_t ucCmd,uint8_t ucIndex,uint8_t *pucSendData, ui
         {
             //data aes encrypt 
             randomBuf_SE(ucRandom,sizeof(ucRandom));
-            CLA = 0x80;
-            INS = MI2C_CMD_AES;
-            P1 = SET_SESTORE_DATA;
-            P2 = 0x00;
-            usSendLen += SESSION_KEYLEN;
+            memset(&ctxe, 0, sizeof(aes_encrypt_ctx));
+            aes_encrypt_key128(g_ucSessionKey,&ctxe);
+            memcpy(SH_IOBUFFER, ucRandom, sizeof(ucRandom));
+            memcpy(SH_IOBUFFER+sizeof(ucRandom), pucSendData, usSendLen);
             usSendLen += sizeof(ucRandom);
-            if (usSendLen > 255)
+            //add pad 
+            if(usSendLen%AES_BLOCK_SIZE)
             {
-                P3 = 0x00;
-                SH_IOBUFFER[0] = (usSendLen>>8)&0xFF;
-                SH_IOBUFFER[1] = usSendLen&0xFF;
-                if (usSendLen > (MI2C_BUF_MAX_LEN - 7))
-                {
-                     return MI2C_ERROR;
-                }
-                memcpy(SH_IOBUFFER+2, g_ucSessionKey, SESSION_KEYLEN);
-                memcpy(SH_IOBUFFER+2+SESSION_KEYLEN, ucRandom, sizeof(ucRandom));
-                memcpy(SH_IOBUFFER+2+SESSION_KEYLEN+sizeof(ucRandom), pucSendData, usSendLen);
-                usSendLen +=7;
+              usPadLen =  AES_BLOCK_SIZE - (usSendLen%AES_BLOCK_SIZE);
+              memset(SH_IOBUFFER+usSendLen, 0x00, usPadLen);
+              SH_IOBUFFER[usSendLen]=0x80;
+              usSendLen += usPadLen;
             }
-            else
-            {
-                P3 = usSendLen&0xFF;
-                memcpy(SH_IOBUFFER, g_ucSessionKey, SESSION_KEYLEN);
-                memcpy(SH_IOBUFFER+SESSION_KEYLEN, ucRandom, sizeof(ucRandom));
-                memcpy(SH_IOBUFFER+SESSION_KEYLEN+sizeof(ucRandom), pucSendData, usSendLen);
-                usSendLen +=5;
-            }
-            vMI2CDRV_SendData(SH_CMDHEAD,usSendLen);
-            g_usMI2cRevLen = sizeof(g_ucMI2cRevBuf);
-            if(false == bMI2CDRV_ReceiveData(g_ucMI2cRevBuf,&g_usMI2cRevLen))
-            {
-                return MI2C_ERROR;
-            }
-            usSendLen = g_usMI2cRevLen;
+            aes_ecb_encrypt(SH_IOBUFFER, g_ucMI2cRevBuf,usSendLen,&ctxe);
          }
          else
          {
@@ -405,63 +412,63 @@ uint32_t MI2CDRV_Transmit(uint8_t ucCmd,uint8_t ucIndex,uint8_t *pucSendData, ui
         }
         usSendLen +=5;
     }
-    vMI2CDRV_SendData(SH_CMDHEAD,usSendLen);
+    if(false ==bMI2CDRV_SendData(SH_CMDHEAD,usSendLen))
+    {
+       return MI2C_ERROR;
+    }
     g_usMI2cRevLen = sizeof(g_ucMI2cRevBuf);
     if(false == bMI2CDRV_ReceiveData(g_ucMI2cRevBuf,&g_usMI2cRevLen))
     {
         return MI2C_ERROR;
     }
-    //aes dencrypt data 
-    if (GET_SESTORE_DATA == ucWRFlag )
+    if (MI2C_ENCRYPT == ucMode )
     {
-        usSendLen = g_usMI2cRevLen;
-        CLA = 0x80;
-        INS = MI2C_CMD_AES;
-        P1 = GET_SESTORE_DATA;
-        P2 = 0x00;
-        usSendLen += SESSION_KEYLEN;
-        if (usSendLen > 255)
+      //aes dencrypt data 
+      if ((GET_SESTORE_DATA == ucWRFlag ) &&(g_usMI2cRevLen  > 0 )&& ((g_usMI2cRevLen%16 == 0x00 ) )  )
+      {
+        memset(&ctxd, 0, sizeof(aes_decrypt_ctx));
+        aes_decrypt_key128(g_ucSessionKey,&ctxd);
+        aes_ecb_decrypt(g_ucMI2cRevBuf, SH_IOBUFFER, g_usMI2cRevLen, &ctxd);
+        if (memcmp(SH_IOBUFFER, ucRandom,sizeof(ucRandom)) != 0) 
         {
-            P3 = 0x00;
-            SH_IOBUFFER[0] = (usSendLen>>8)&0xFF;
-            SH_IOBUFFER[1] = usSendLen&0xFF;
-            if (usSendLen > (MI2C_BUF_MAX_LEN - 7))
+            return MI2C_ERROR;
+        }
+        //delete pad
+        for(i=1;i<0x11;i++)
+        {
+          if(SH_IOBUFFER[g_usMI2cRevLen-i]==0x80)
+          {
+            for(usPadLen=1;usPadLen<i;usPadLen++)
             {
-                 return MI2C_ERROR;
+              if(SH_IOBUFFER[g_usMI2cRevLen-usPadLen]!=0x00)
+              {
+                i=0x11;
+                break;
+              }
+
             }
-            memcpy(SH_IOBUFFER+2, g_ucSessionKey, SESSION_KEYLEN);
-            memcpy(SH_IOBUFFER+2+SESSION_KEYLEN, g_ucMI2cRevBuf, usSendLen);
-            usSendLen +=7;
+            break;
+          }
         }
-        else
+
+        if(i!=0x11)
         {
-            P3 = usSendLen&0xFF;
-            memcpy(SH_IOBUFFER, g_ucSessionKey, SESSION_KEYLEN);
-            memcpy(SH_IOBUFFER+SESSION_KEYLEN, g_ucMI2cRevBuf, usSendLen);
-            usSendLen +=5;
-        }
-        vMI2CDRV_SendData(SH_CMDHEAD,usSendLen);
-        g_usMI2cRevLen = sizeof(g_ucMI2cRevBuf);
-        if(false == bMI2CDRV_ReceiveData(g_ucMI2cRevBuf,&g_usMI2cRevLen))
-        {
-            return MI2C_ERROR;
-        }
-        if (memcmp(g_ucMI2cRevBuf, ucRandom,sizeof(ucRandom)) != 0) 
-        {
-            return MI2C_ERROR;
+          g_usMI2cRevLen=g_usMI2cRevLen-i;
         }
         g_usMI2cRevLen  -=sizeof(ucRandom);
-        memcpy(pucRevData, g_ucMI2cRevBuf+sizeof(ucRandom), g_usMI2cRevLen);
-        *pusRevLen =g_usMI2cRevLen;
+        if (pucRevData != NULL)
+        {
+          memcpy(pucRevData, SH_IOBUFFER+sizeof(ucRandom), g_usMI2cRevLen);
+          *pusRevLen =g_usMI2cRevLen;
+          return MI2C_OK;
+        }
+      }
+   }
+   if (pucRevData != NULL) {
+        memcpy(pucRevData, g_ucMI2cRevBuf, g_usMI2cRevLen);
+        *pusRevLen =g_usMI2cRevLen;;
     }
-    else
-    {
-         if (pucRevData != NULL) {
-             memcpy(pucRevData, g_ucMI2cRevBuf, g_usMI2cRevLen);
-             *pusRevLen =g_usMI2cRevLen;;
-         }
-    }
-    return MI2C_OK;
+   return MI2C_OK;
     
 }
 

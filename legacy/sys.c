@@ -202,6 +202,27 @@ void vPower_Control(uint8_t ucMode) {
   }
 }
 
+bool bCheckNFCMode(void)
+{
+   uint8_t i;
+   
+   i = 0;
+   while(i < 30)
+   {
+      if (0x00 == GET_NFC_INSERT())
+      {
+        delay_time(1);
+        if (0x00 == GET_NFC_INSERT())
+        {
+          return true;
+        }
+      }
+      delay_time(1);
+      i++;
+   }
+   return false;
+}
+
 /*
  * check usb/nfc/ble
  */
@@ -209,13 +230,18 @@ void vCheckMode(uint8_t ucMode) {
   g_ucWorkMode = 0;
 
   // nfc mode
-  if (0x00 == GET_NFC_INSERT()) {
-    delay_time(2);
-    if (0x00 == GET_NFC_INSERT()) {
+//  if (0x00 == GET_NFC_INSERT()) {
+//    delay_time(2);
+//    if (0x00 == GET_NFC_INSERT()) {
+//      g_ucWorkMode = WORK_MODE_NFC;
+//      POWER_ON();
+//      POWER_ON_BLE();
+//      return;
+//    }
+  if (true == bCheckNFCMode()) {
       g_ucWorkMode = WORK_MODE_NFC;
       POWER_ON();
-      return;
-    }
+      POWER_ON_BLE();
   } else {
     // usb mode
     if (GET_USB_INSERT()) {

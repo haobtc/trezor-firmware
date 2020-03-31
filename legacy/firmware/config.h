@@ -167,6 +167,9 @@ bool config_getBleTrans(void);
 void config_SetEnterBoot(void );
 void config_setWhetherUseSE(bool flag);
 bool config_getWhetherUseSE(void);
+void config_setSeedsExportFlag(bool flag);
+bool config_getSeedsExportFlag(void);
+
 
 extern char config_uuid_str[2 * UUID_SIZE + 1];
 

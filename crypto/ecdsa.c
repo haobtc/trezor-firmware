@@ -791,7 +791,7 @@ int ecdsa_sign_digest(const ecdsa_curve *curve, const uint8_t *priv_key,
      if (pby) {
        *pby = by;
       }
-     memcpy(sig,ucRevBuf,0x40);
+     memcpy(sig,ucRevBuf+1,0x40);
      return 0;
     }
     return -1;
