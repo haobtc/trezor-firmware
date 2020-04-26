@@ -109,6 +109,8 @@ extern USB_Info g_usb_info;
 
 void oledInit(void);
 void oledClear(void);
+void oledAllDisplay(void) ;
+
 void oledRefresh(void);
 
 void oledSetDebugLink(bool set);

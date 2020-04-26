@@ -175,6 +175,9 @@ void oledInit() {
  */
 void oledClear() { memzero(_oledbuffer, sizeof(_oledbuffer)); }
 
+void oledAllDisplay() { memset(_oledbuffer, 0xFF,sizeof(_oledbuffer)); }
+
+
 void oledInvertDebugLink() {
   if (is_debug_link) {
     oledInvertPixel(OLED_WIDTH - 5, 0);

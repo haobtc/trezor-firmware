@@ -7,6 +7,7 @@ if __debug__:
         from typing import Dict, List  # noqa: F401
         from typing_extensions import Literal  # noqa: F401
         EnumTypePassphraseSourceType = Literal[0, 1, 2]
+        EnumTypeExportType = Literal[0, 1, 2]
     except ImportError:
         pass
 
@@ -26,7 +27,7 @@ class ApplySettings(p.MessageType):
         use_fee_pay: int = None,
         use_ble: bool = None,
         use_se: bool = None,
-        use_exportseeds: bool = None,
+        use_exportseeds: EnumTypeExportType = None,
     ) -> None:
         self.language = language
         self.label = label
@@ -53,5 +54,5 @@ class ApplySettings(p.MessageType):
             8: ('use_fee_pay', p.UVarintType, 0),
             9: ('use_ble', p.BoolType, 0),
             10: ('use_se', p.BoolType, 0),
-            11: ('use_exportseeds', p.BoolType, 0),
+            11: ('use_exportseeds', p.EnumType("ExportType", (0, 1, 2)), 0),
         }

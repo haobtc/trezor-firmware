@@ -11,6 +11,8 @@
 #include "rand.h"
 #include "aes/aes.h"
 
+extern void config_setWhetherUseSE(bool flag);
+
 
 const uint8_t SessionModeMode_ROMKEY[16] =
 {
@@ -147,6 +149,8 @@ static bool bMI2CDRV_WriteBytes(uint32_t i2c, uint8_t *data,
     }
 
     i2c_send_7bit_address(i2c, MI2C_ADDR, MI2C_WRITE);
+
+    usTimeout = 0;
 
     // Waiting for address is transferred.
     while (!(I2C_SR1(i2c) & I2C_SR1_ADDR)) {
@@ -320,6 +324,7 @@ void vMI2CDRV_SynSessionKey(void)
     
     if (SESSION_FALG != uiSessionFlag )
     {
+       config_setWhetherUseSE(true);
         //enable mode session
         ucSessionMode = 1;
         memcpy( g_ucSessionKey,( uint8_t *)SessionModeMode_ROMKEY,sizeof(SessionModeMode_ROMKEY));
@@ -382,16 +387,18 @@ uint32_t MI2CDRV_Transmit(uint8_t ucCmd,uint8_t ucIndex,uint8_t *pucSendData, ui
               SH_IOBUFFER[usSendLen]=0x80;
               usSendLen += usPadLen;
             }
-            vUART_DebugInfo("\n\r  vMI2CDRV_SendData encrypt!\n\r", SH_IOBUFFER, usSendLen);
             aes_ecb_encrypt(SH_IOBUFFER, g_ucMI2cRevBuf,usSendLen,&ctxe);
          }
          else
          {
             // data add random  
             random_buffer_ST(ucRandom,sizeof(ucRandom));
-            usSendLen += sizeof(ucRandom);
             memcpy(g_ucMI2cRevBuf,ucRandom, sizeof(ucRandom));
-            memcpy(g_ucMI2cRevBuf+sizeof(ucRandom), pucSendData, usSendLen);
+            if (usSendLen > 0 )
+            {
+              memcpy(g_ucMI2cRevBuf+sizeof(ucRandom), pucSendData, usSendLen);
+            }
+            usSendLen += sizeof(ucRandom);
          }
 
     }
@@ -480,7 +487,6 @@ uint32_t MI2CDRV_Transmit(uint8_t ucCmd,uint8_t ucIndex,uint8_t *pucSendData, ui
         g_usMI2cRevLen  -=sizeof(ucRandom);
         if (pucRevData != NULL)
         {
-          vUART_DebugInfo("\n\r bMI2CDRV_ReceiveData decrypt!\n\r", SH_IOBUFFER+sizeof(ucRandom), g_usMI2cRevLen);
           memcpy(pucRevData, SH_IOBUFFER+sizeof(ucRandom), g_usMI2cRevLen);
           *pusRevLen =g_usMI2cRevLen;
           return MI2C_OK;

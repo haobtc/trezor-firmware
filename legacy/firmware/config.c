@@ -402,13 +402,15 @@ void config_init(void) {
 
   storage_init(&protectPinUiCallback, HW_ENTROPY_DATA, HW_ENTROPY_LEN);
   memzero(HW_ENTROPY_DATA, sizeof(HW_ENTROPY_DATA));
-  vMI2CDRV_SynSessionKey();
-  //whether use se flag store se 
-  config_getWhetherUseSE();
+
   // Auto-unlock storage if no PIN is set.
   if (storage_is_unlocked() == secfalse && storage_has_pin() == secfalse) {
     storage_unlock(PIN_EMPTY, NULL);
   }
+
+  vMI2CDRV_SynSessionKey();
+  //get whether use se flag 
+  g_bSelectSEFlag = config_getWhetherUseSE();
 
   uint16_t len = 0;
   // If UUID is not set, then the config is uninitialized.
@@ -420,7 +422,7 @@ void config_init(void) {
     storage_set(KEY_VERSION, &CONFIG_VERSION, sizeof(CONFIG_VERSION));
   }
   config_getLanguage(ucBuf, MAX_LANGUAGE_LEN);
-  config_getBleTrans();
+  g_bBleTransMode = config_getBleTrans();
   data2hex(config_uuid, sizeof(config_uuid), config_uuid_str);
 
   usbTiny(oldTiny);
@@ -771,17 +773,41 @@ bool config_setSeedsBytes(const uint8_t *seeds, uint8_t len) {
   if (sectrue != storage_set(KEY_SEEDS, seeds, len)) {
     return false;
   }
-  config_set_bool(KEY_INITIALIZED, true);
-  config_set_bool(KEY_SEEDSFLAG, true);
+  if (!g_bSelectSEFlag)
+  {
+    config_set_bool(KEY_INITIALIZED, true);
+    config_set_bool(KEY_SEEDSFLAG, true);
+  }
 
   return true;
 }
-bool config_getSeedsBytes(uint8_t *dest, uint16_t dest_size) {
-  uint16_t real_size;
-  if (!config_isInitializedSeeds()) {
+bool config_SeedsEncExportBytes(uint8_t *dest) {
+  uint16_t dest_size;
+  if (!g_bSelectSEFlag)
+  {
     return false;
   }
-  return sectrue == config_get_bytes(KEY_SEEDS, dest, dest_size, &real_size);
+  if (sectrue != MI2CDRV_Transmit(MI2C_CMD_WR_PIN,(KEY_SEEDS&0xFF), NULL, 0,dest,&dest_size,FLAG_PUBLIC,GET_SESTORE_DATA)) {
+    return false;
+  }
+  dest[dest_size] = '\0';
+  return true;
+}
+bool config_SeedsEncImportBytes(uint8_t *src, uint16_t src_size) {
+  uint8_t ucSendBuf[512];
+  if (!g_bSelectSEFlag)
+  {
+    return false;
+  }
+  if(src_size > 512)
+  {
+    return false;
+  }
+  memcpy(ucSendBuf,src, src_size);
+  if (sectrue != MI2CDRV_Transmit(MI2C_CMD_WR_PIN,(KEY_SEEDS&0xFF), ucSendBuf, src_size,NULL ,NULL,FLAG_PUBLIC,DELETE_SESTORE_DATA)) {
+    return false;
+  }
+  return true;
 }
 
 bool config_getMnemonicBytes(uint8_t *dest, uint16_t dest_size,
@@ -1057,20 +1083,21 @@ void config_setBleTrans(bool mode) {
 }
 
 bool config_getBleTrans(void) {
-  return sectrue ==config_get_bool(KEY_TRANSBLEMODE, &g_bBleTransMode);
+  bool flag;
+  return sectrue ==config_get_bool(KEY_TRANSBLEMODE, &flag);
 }
 
 void config_setWhetherUseSE(bool flag) {
   config_set_bool(KEY_SEFLAG, flag);
-  g_bSelectSEFlag = flag;
 }
 
 bool config_getWhetherUseSE(void) {
-  return sectrue ==config_get_bool(KEY_SEFLAG, &g_bSelectSEFlag);
+  bool flag;
+  return sectrue ==config_get_bool(KEY_SEFLAG, &flag);
 }
 
 
-void config_setSeedsExportFlag(bool flag) {
+void config_setSeedsExportFlag(ExportType flag) {
   config_set_bool(KEY_EXPORTSEEDFLAG, flag);
 }
 
@@ -1079,4 +1106,23 @@ bool config_getSeedsExportFlag(void) {
   return sectrue ==config_get_bool(KEY_EXPORTSEEDFLAG, &flag);
 }
 
+bool config_getMessageSE(uint8_t *pucSendData, uint16_t usSendLen,uint8_t *pucRevData) {
+  uint16_t usRevLen;
+  
+  if (!g_bSelectSEFlag)
+  {
+    return false;
+  }
+  if(false ==bMI2CDRV_SendData(pucSendData,usSendLen))
+  {
+    return false;
+  }
+  usRevLen = MI2C_BUF_MAX_LEN -1;
+  if(false == bMI2CDRV_ReceiveData(pucRevData,&usRevLen))
+  {
+      return false;
+  }
+  pucRevData[usRevLen] = '\0';
+  return true;
+}
 
