@@ -579,12 +579,12 @@ void config_setLanguage(const char *lang) {
   if (lang == NULL) {
     return;
   }
-
   // Sanity check.
-  if (strcmp(lang, "en-US") != 0) {
-    return;
-  }
-  if (strcmp(lang, "chinese") != 0) {
+  if (strcmp(lang, "en-US") == 0 || strcmp(lang, "englise") == 0) {
+    ui_language = 0;
+  } else if (strcmp(lang, "chinese") == 0 || strcmp(lang, "zh") == 0) {
+    ui_language = 1;
+  } else {
     return;
   }
 
