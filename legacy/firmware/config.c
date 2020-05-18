@@ -1067,6 +1067,7 @@ void config_wipe(void) {
   storage_set(KEY_VERSION, &CONFIG_VERSION, sizeof(CONFIG_VERSION));
 #if !EMULATOR
   if (g_bSelectSEFlag) {
+    session_clear(true);
     se_reset_storage(KEY_RESET);
     g_bSelectSEFlag = 0;
   }
