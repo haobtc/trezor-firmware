@@ -31,7 +31,7 @@
 
 ### <br/>**Electrum客户端**</br>
 #### &nbsp; 环境搭建
-  #### &nbsp; LINUX
+  #### &nbsp; LINUX(Ubuntu 18.04)
   ```
     wget https://download.electrum.org/3.3.8/Electrum-3.3.8.tar.gz
     tar -xvf Electrum-3.3.8.tar.gz
@@ -103,7 +103,7 @@
 ## <br/>**市面流行的支持BixinKEY的APP**</br>
 ### <br/>**Bitcoin core + Specter-Desktop**</br>
 #### &nbsp;环境搭建
-#### &nbsp;LINUX
+#### &nbsp;LINUX(Ubuntu 18.04)
 #### &nbsp;搭建regtest私有链:
   - git clone https://github.com/bitcoin/bitcoin.git
   - cd bitcoin
@@ -151,7 +151,7 @@
 
 ### <br/>**bitcoin core+HWI**</br>  
 #### &nbsp;环境搭建
-#### &nbsp;LINUX
+#### &nbsp;LINUX(Ubuntu 18.04)
   &nbsp;参考网址：https://github.com/bitcoin-core/HWI/blob/master/docs/bitcoin-core-usage.md  
 #### 搭建regtest私有链：
   - 同"Bitcoin core + Specter-Desktop"中搭建流程一致  
@@ -191,9 +191,10 @@
   - 可以使用BixinKEY
 
 
+
 ## <br/>**Wasabi**</br>
 #### &nbsp;环境搭建
-#### &nbsp;LINUX
+#### &nbsp;LINUX(Ubuntu 18.04)
 - APP下载地址：https://wasabiwallet.io/#download
 - github地址：https://github.com/zkSNACKs/WalletWasabi
 #### &nbsp; 创建一个钱包
@@ -211,3 +212,104 @@
 #### &nbsp;结果
 - 可以使用BixinKEY
 
+
+### <br/>**BTCPayServer**</br>  
+#### &nbsp;环境搭建
+#### &nbsp;LINUX(Ubuntu 18.04)
+  &nbsp;参考网址：https://github.com/justinmoon/junction  
+#### &nbsp;安装比特币核心0.19.1
+  ```
+    BITCOIN_VERSION="0.19.1"
+    BITCOIN_URL="https://bitcoin.org/bin/bitcoin-core-0.19.1/bitcoin-0.19.1-x86_64-linux-gnu.tar.gz"
+    BITCOIN_SHA256="5fcac9416e486d4960e1a946145566350ca670f9aaba99de6542080851122e4c"
+
+    # install bitcoin binaries
+    cd /tmp
+    wget -O bitcoin.tar.gz "$BITCOIN_URL"
+    echo "$BITCOIN_SHA256 bitcoin.tar.gz" | sha256sum -c - && \
+    mkdir bin && \
+    sudo tar -xzvf bitcoin.tar.gz -C /usr/local/bin --strip-components=2 "bitcoin-$BITCOIN_VERSION/bin/bitcoin-cli" "bitcoin-$BITCOIN_VERSION/bin/bitcoind"
+    rm bitcoin.tar.gz
+    修改配置文件:
+        server=1
+        txindex=1
+        rpcuser=bitcoinrpc
+        rpcpassword=bitcoinrpc
+        rpcallowip=192.168.255.144
+        regtest=1
+        [regtest]
+        rpcport=18443
+  ```
+#### &nbsp;安装.NET Core SDK 3.1
+  ```
+    wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb
+    sudo dpkg -i packages-microsoft-prod.deb
+    sudo apt-get install apt-transport-https
+    sudo apt-get update
+    sudo apt-get install -y dotnet-sdk-3.1
+  ```
+#### &nbsp;安装NBXplorer
+  ```
+    cd ~
+    git clone https://github.com/dgarage/NBXplorer
+    cd NBXplorer
+    git checkout latest
+    ./build.sh
+  ```
+#### &nbsp;安装BTCPayServer
+  ```
+    cd ~
+    git clone https://github.com/btcpayserver/btcpayserver
+    cd btcpayserver
+    git checkout latest
+    ./build.sh
+  ```
+#### &nbsp;运行
+  - 运行bitcoind
+    ```
+    bitcoind
+    ``` 
+  - 运行NBXplorer
+    ```
+    cd ~/NBXplorer
+    修改配置文件~/.nbxplorer/RegTest/settings.config:    
+      btc.rpc.url=http://127.0.0.1:18443
+      btc.rpc.user=bitcoinrpc
+      bit.rpc.password=bitcoinrpc
+      btc.rpc.auth=bitcoinrpc:bitcoinrpc
+    ./run.sh --network=regtest
+    ```
+  - 运行BTCPayServer
+    ```
+    cd ~/btcpayserver
+    ./run.sh --port 8080 --bind 0.0.0.0 --network=regtest
+    ```
+  - 浏览器访问127.0.0.1:8080端口,开启网页版BTCPayServer
+  
+#### &nbsp; 查找硬件
+  - 网页版BTCPayServer创建一个Store
+  - 下载BTCPay Vault应用(https://github.com/btcpayserver/BTCPayServer.Vault/releases，我下载的linux版本)
+  - mkdir BTCPayServer;tar -zxvf BTCPayServerVault-Linux-1.0.3.tar.gz
+  - ./BTCPayServer.Vault（启动BTCPayServer.vault程序并插入硬件）
+  - 去浏览器BTCPayServer应用，点击BTCPay Server’s Stores > Settings > General Settings > Derivation Scheme > Import from the vault
+    ![load-vault](./pictures/btcpayserver-import-from-vault-2.png)</br>
+  - 此时跳到提醒页面，提醒用户去BTCPay Vault app去点击accept按钮授权web应用访问硬件(只有第一次需要授权，如果硬件有密码，会让输入密码)
+    ![import](./pictures/btcpayserver-import-from-vault-1.png)</br>
+    ![accept](./pictures/btcpayserver-vault-accept.png)</br>
+  - 选择地址类型，点击confirm确认
+    ![confirm](./pictures/btcpayserver-vault-confirm.png)</br>
+  - 此时显示扩展公钥，点击continue，显示生成的派生地址
+    ![address](./pictures/btcpayserver-get-pubkey.png)</br>
+#### &nbsp; 创建一个钱包
+  - 到这一步，你在浏览器BTCPayserver中点击Wallets就可以看到一个跟新创建的Store同名的钱包
+#### &nbsp; 发币
+  - 点击钱包后边的Manage按钮，点击左侧Send按钮，并输入目的地址和转账金额，点击"Sign with the vault"
+    ![send](./pictures/btcpayserver-send.png)</br>
+  - 跳到签名提醒页面，此时要到硬件上进行签名
+    ![sign](./pictures/btcpayserver-hw-sign.png)</br>
+  - 签名以后，跳到广播页面，点击broadcast按钮进行广播
+    ![broadcast](./pictures/btcpayserver-broadcast.png)</br>
+#### &nbsp; 结果
+  - 点击交易页面查看到交易详情
+    ![broadcast](./pictures/btcpayserver-history-list.png)</br>
+  - 可以使用BixinKEY
